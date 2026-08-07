@@ -9,16 +9,21 @@ import json
 import os
 import subprocess
 
-def generate_ai_response(prompt, username):
-    # 1. Primary Engine: Route prompt through Antigravity CLI (agy)
+def generate_ai_response(prompt, username, session_id=None):
+    # 1. Primary Engine: Route prompt through Antigravity CLI (agy) with persistent conversation session
     try:
-        cmd = ["agy", "--print", f"User '{username}' asks: {prompt}"]
+        cmd = ["agy", "--print"]
+        if session_id:
+            cmd.extend(["--conversation", str(session_id)])
+        cmd.append(f"User '{username}': {prompt}")
+
         result = subprocess.run(cmd, capture_output=True, text=True, timeout=90, encoding="utf-8")
         if result.returncode == 0 and result.stdout.strip():
             return {
                 "success": True,
                 "reply": result.stdout.strip(),
-                "model": "Antigravity CLI (Gemini 3.6 Flash)"
+                "model": "Antigravity CLI (Gemini 3.6 Flash)",
+                "sessionId": session_id
             }
     except Exception as err:
         # Fallback if agy execution fails
@@ -38,7 +43,8 @@ def generate_ai_response(prompt, username):
                 return {
                     "success": True,
                     "reply": response.text.strip(),
-                    "model": "gemini-1.5-flash"
+                    "model": "gemini-1.5-flash",
+                    "sessionId": session_id
                 }
         except Exception as e:
             pass
@@ -57,18 +63,40 @@ def generate_ai_response(prompt, username):
     return {
         "success": True,
         "reply": reply,
-        "model": "gemini-2.5-flash"
+        "model": "gemini-2.5-flash",
+        "sessionId": session_id
     }
 
 def main():
     try:
         input_data = {}
+        
+        # Parse command line arguments (--prompt, --username, --session) or JSON string
         if len(sys.argv) > 1:
             raw_arg = sys.argv[1]
-            try:
-                input_data = json.loads(raw_arg)
-            except Exception:
-                input_data = {"prompt": raw_arg, "username": "User"}
+            if raw_arg.startswith("{"):
+                try:
+                    input_data = json.loads(raw_arg)
+                except Exception:
+                    input_data = {"prompt": raw_arg}
+            else:
+                # Handle positional or flag arguments
+                i = 1
+                while i < len(sys.argv):
+                    arg = sys.argv[i]
+                    if arg in ("--prompt", "-p") and i + 1 < len(sys.argv):
+                        input_data["prompt"] = sys.argv[i + 1]
+                        i += 2
+                    elif arg in ("--username", "-u") and i + 1 < len(sys.argv):
+                        input_data["username"] = sys.argv[i + 1]
+                        i += 2
+                    elif arg in ("--session", "-s", "--conversation") and i + 1 < len(sys.argv):
+                        input_data["sessionId"] = sys.argv[i + 1]
+                        i += 2
+                    else:
+                        if "prompt" not in input_data:
+                            input_data["prompt"] = arg
+                        i += 1
         else:
             raw_input = sys.stdin.read().strip()
             if raw_input:
@@ -79,11 +107,12 @@ def main():
         
         prompt = input_data.get("prompt", "").strip()
         username = input_data.get("username", "User").strip()
+        session_id = input_data.get("sessionId", None)
 
         if not prompt:
             res = {"success": False, "error": "Empty prompt received"}
         else:
-            res = generate_ai_response(prompt, username)
+            res = generate_ai_response(prompt, username, session_id)
 
     except Exception as e:
         res = {"success": False, "error": str(e)}

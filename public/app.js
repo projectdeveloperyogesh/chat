@@ -53,9 +53,17 @@ document.addEventListener('DOMContentLoaded', () => {
   let activeChannel = 'global'; // 'global' | 'ai'
   const messagesStore = { global: [], ai: [] };
 
+  // AI Conversation Session ID (persisted per browser session)
+  let aiSessionId = localStorage.getItem('yogesh_ai_session_id');
+  if (!aiSessionId) {
+    aiSessionId = 'session-' + Date.now() + '-' + Math.round(Math.random() * 1000);
+    localStorage.setItem('yogesh_ai_session_id', aiSessionId);
+  }
+
   // Channel Header Elements
   const channelTitle = document.querySelector('.channel-info h2');
   const channelSub = document.querySelector('.channel-info p');
+  const newAiSessionBtn = document.getElementById('new-ai-session-btn');
 
   // --------------------------------------------------
   // Helper Functions
@@ -138,13 +146,24 @@ document.addEventListener('DOMContentLoaded', () => {
     // Update Header Text & Icons
     if (channel === 'ai') {
       channelTitle.innerHTML = `<i class="fa-solid fa-robot"></i> ai-assistant <span class="badge ai-badge">Gemini AI</span>`;
-      channelSub.textContent = `Ask questions, generate code, or analyze topics with Python AI Agent`;
+      channelSub.textContent = `Ask questions, generate code, or discuss multi-turn topics with Antigravity CLI`;
+      if (newAiSessionBtn) newAiSessionBtn.classList.remove('hidden');
     } else {
       channelTitle.innerHTML = `<i class="fa-solid fa-hashtag"></i> global-lounge`;
       channelSub.textContent = `Share messages, images, videos & documents instantly`;
+      if (newAiSessionBtn) newAiSessionBtn.classList.add('hidden');
     }
 
     renderChannelMessages();
+  }
+
+  if (newAiSessionBtn) {
+    newAiSessionBtn.addEventListener('click', () => {
+      aiSessionId = 'session-' + Date.now() + '-' + Math.round(Math.random() * 1000);
+      localStorage.setItem('yogesh_ai_session_id', aiSessionId);
+      messagesStore.ai = [];
+      renderChannelMessages();
+    });
   }
 
   function renderChannelMessages() {
@@ -383,8 +402,8 @@ document.addEventListener('DOMContentLoaded', () => {
     if (!text && !hasFiles) return;
 
     if (activeChannel === 'ai') {
-      // AI Channel Submission
-      socket.emit('ai:send', { text });
+      // AI Channel Submission with Multi-Turn Conversation Session ID
+      socket.emit('ai:send', { text, sessionId: aiSessionId });
       chatMessageInput.value = '';
     } else {
       // Global Lounge Channel Submission

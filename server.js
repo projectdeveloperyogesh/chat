@@ -245,11 +245,13 @@ io.on('connection', (socket) => {
     // 2. Broadcast AI typing status
     io.emit('ai:typing', { isTyping: true, username: 'Yogesh AI' });
 
-    // 3. Spawn Python AI Agent
-    const payload = JSON.stringify({ prompt: text, username: user.username });
-    const pyScriptPath = path.join(__dirname, 'ai_agent.py');
+    const sessionId = (data.sessionId || ('session-' + user.username)).trim();
 
-    execFile('python', [pyScriptPath, payload], { cwd: __dirname, maxBuffer: 10 * 1024 * 1024, timeout: 120000 }, (error, stdout, stderr) => {
+    // 3. Spawn Python AI Agent with Session ID
+    const pyScriptPath = path.join(__dirname, 'ai_agent.py');
+    const pyArgs = [pyScriptPath, '--prompt', text, '--username', user.username, '--session', sessionId];
+
+    execFile('python', pyArgs, { cwd: __dirname, maxBuffer: 10 * 1024 * 1024, timeout: 120000 }, (error, stdout, stderr) => {
       io.emit('ai:typing', { isTyping: false, username: 'Yogesh AI' });
 
       let replyText = "I encountered an issue processing your request. Please try again.";

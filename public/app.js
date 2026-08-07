@@ -65,10 +65,22 @@ document.addEventListener('DOMContentLoaded', () => {
   const channelSub = document.querySelector('.channel-info p');
   const newAiSessionBtn = document.getElementById('new-ai-session-btn');
 
-  // AI Sidebar Thread Elements
+  // AI Sidebar & Header Elements
   const aiThreadsSection = document.getElementById('ai-threads-section');
   const addAiThreadBtn = document.getElementById('add-ai-thread-btn');
   const aiSessionList = document.getElementById('ai-session-list');
+  const aiModelWrapper = document.getElementById('ai-model-wrapper');
+  const aiModelSelect = document.getElementById('ai-model-select');
+
+  // AI Model Selection State
+  let selectedModel = localStorage.getItem('yogesh_ai_model') || 'Gemini 3.6 Flash (High)';
+  if (aiModelSelect) {
+    aiModelSelect.value = selectedModel;
+    aiModelSelect.addEventListener('change', () => {
+      selectedModel = aiModelSelect.value;
+      localStorage.setItem('yogesh_ai_model', selectedModel);
+    });
+  }
 
   // --------------------------------------------------
   // Helper Functions
@@ -154,12 +166,14 @@ document.addEventListener('DOMContentLoaded', () => {
       channelSub.textContent = `Ask questions, generate code, or discuss topics with Antigravity CLI`;
       if (newAiSessionBtn) newAiSessionBtn.classList.remove('hidden');
       if (aiThreadsSection) aiThreadsSection.classList.remove('hidden');
+      if (aiModelWrapper) aiModelWrapper.classList.remove('hidden');
       socket.emit('ai:session:list');
     } else {
       channelTitle.innerHTML = `<i class="fa-solid fa-hashtag"></i> global-lounge`;
       channelSub.textContent = `Share messages, images, videos & documents instantly`;
       if (newAiSessionBtn) newAiSessionBtn.classList.add('hidden');
       if (aiThreadsSection) aiThreadsSection.classList.add('hidden');
+      if (aiModelWrapper) aiModelWrapper.classList.add('hidden');
     }
 
     renderChannelMessages();
@@ -411,8 +425,8 @@ document.addEventListener('DOMContentLoaded', () => {
     if (!text && !hasFiles) return;
 
     if (activeChannel === 'ai') {
-      // AI Channel Submission with Multi-Turn Conversation Session ID
-      socket.emit('ai:send', { text, sessionId: aiSessionId });
+      // AI Channel Submission with Multi-Turn Conversation Session ID and Selected Model
+      socket.emit('ai:send', { text, sessionId: aiSessionId, model: selectedModel });
       chatMessageInput.value = '';
     } else {
       // Global Lounge Channel Submission

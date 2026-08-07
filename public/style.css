@@ -537,6 +537,46 @@ body {
   background: rgba(239, 68, 68, 0.25);
 }
 
+/* Model Selector Dropdown */
+.model-selector-wrapper {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: rgba(139, 92, 246, 0.15);
+  border: 1px solid rgba(139, 92, 246, 0.35);
+  padding: 6px 12px;
+  border-radius: var(--radius-md);
+  transition: all 0.2s ease;
+}
+
+.model-selector-wrapper:hover {
+  background: rgba(139, 92, 246, 0.25);
+  border-color: rgba(139, 92, 246, 0.5);
+}
+
+.model-selector-wrapper .model-icon {
+  font-size: 13px;
+  color: #c084fc;
+}
+
+.ai-model-select {
+  background: transparent;
+  border: none;
+  color: #fff;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  outline: none;
+  font-family: inherit;
+}
+
+.ai-model-select option {
+  background: #1e1b4b;
+  color: #fff;
+  font-weight: 500;
+  padding: 8px;
+}
+
 .user-list {
   list-style: none;
   display: flex;

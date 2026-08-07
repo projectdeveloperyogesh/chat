@@ -9,7 +9,7 @@ import json
 import os
 import subprocess
 
-def generate_ai_response(prompt, username, history=None):
+def generate_ai_response(prompt, username, history=None, selected_model="Gemini 3.6 Flash (High)"):
     # Construct full multi-turn contextual prompt
     full_prompt = f"System: You are Yogesh Chat AI, a helpful AI assistant in a multi-turn chat session with {username}. Answer concisely and accurately using Markdown.\n\n"
     
@@ -22,15 +22,15 @@ def generate_ai_response(prompt, username, history=None):
     
     full_prompt += f"{username}: {prompt}\nYogesh AI:"
 
-    # 1. Primary Engine: Route prompt through Antigravity CLI (agy --print)
+    # 1. Primary Engine: Route prompt through Antigravity CLI (agy --model <selected_model> --print)
     try:
-        cmd = ["agy", "--print", full_prompt]
+        cmd = ["agy", "--model", selected_model, "--print", full_prompt]
         result = subprocess.run(cmd, capture_output=True, text=True, timeout=90, encoding="utf-8")
         if result.returncode == 0 and result.stdout.strip():
             return {
                 "success": True,
                 "reply": result.stdout.strip(),
-                "model": "Antigravity CLI (Gemini 3.6 Flash)"
+                "model": f"Antigravity CLI ({selected_model})"
             }
     except Exception as err:
         pass
@@ -110,11 +110,12 @@ def main():
         prompt = input_data.get("prompt", "").strip()
         username = input_data.get("username", "User").strip()
         history = input_data.get("history", [])
+        selected_model = input_data.get("model", "Gemini 3.6 Flash (High)").strip()
 
         if not prompt:
             res = {"success": False, "error": "Empty prompt received"}
         else:
-            res = generate_ai_response(prompt, username, history)
+            res = generate_ai_response(prompt, username, history, selected_model)
 
     except Exception as e:
         res = {"success": False, "error": str(e)}

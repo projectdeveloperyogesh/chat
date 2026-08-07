@@ -399,10 +399,12 @@ io.on('connection', (socket) => {
       socket.emit('ai:session:list:update', getUserSessionList(user.username));
     });
 
+    const reqModel = (data.model || 'gemini-3.6-flash').trim();
     const payload = JSON.stringify({
       prompt: text,
       username: user.username,
-      history: session.history
+      history: session.history,
+      model: reqModel
     });
     pyProc.stdin.write(payload);
     pyProc.stdin.end();

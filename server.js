@@ -5,7 +5,7 @@ const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
 const os = require('os');
-const { execFile } = require('child_process');
+const { execFile, spawn } = require('child_process');
 const cors = require('cors');
 
 const app = express();
@@ -341,19 +341,24 @@ io.on('connection', (socket) => {
     // 2. Broadcast AI typing status
     socket.emit('ai:typing', { isTyping: true, username: 'Yogesh AI' });
 
-    // 3. Spawn Python AI Agent with Session History
+    // 3. Spawn Python AI Agent with Stdin JSON payload
     const pyScriptPath = path.join(__dirname, 'ai_agent.py');
-    const pyArgs = [pyScriptPath, '--prompt', text, '--username', user.username, '--history', JSON.stringify(session.history)];
+    const pyProc = spawn('python', [pyScriptPath], { cwd: __dirname });
+    let stdoutData = '';
+    let stderrData = '';
 
-    execFile('python', pyArgs, { cwd: __dirname, maxBuffer: 10 * 1024 * 1024, timeout: 120000 }, (error, stdout, stderr) => {
+    pyProc.stdout.on('data', (data) => { stdoutData += data.toString(); });
+    pyProc.stderr.on('data', (data) => { stderrData += data.toString(); });
+
+    pyProc.on('close', (code) => {
       socket.emit('ai:typing', { isTyping: false, username: 'Yogesh AI' });
 
       let replyText = "I encountered an issue processing your request. Please try again.";
       let modelName = "gemini-2.5-flash";
 
-      if (!error && stdout) {
+      if (stdoutData.trim()) {
         try {
-          const resObj = JSON.parse(stdout);
+          const resObj = JSON.parse(stdoutData.trim());
           if (resObj.success && resObj.reply) {
             replyText = resObj.reply;
             modelName = resObj.model || modelName;
@@ -361,10 +366,10 @@ io.on('connection', (socket) => {
             replyText = `AI Error: ${resObj.error}`;
           }
         } catch (e) {
-          console.error("Failed to parse AI output:", stdout);
+          console.error("Failed to parse AI output:", stdoutData);
         }
-      } else if (error) {
-        console.error("Python AI agent execution error:", error, stderr);
+      } else if (stderrData) {
+        console.error("Python AI agent stderr:", stderrData);
       }
 
       // Update multi-turn session history & messages
@@ -393,6 +398,14 @@ io.on('connection', (socket) => {
       socket.emit('ai:message:new', aiMsg);
       socket.emit('ai:session:list:update', getUserSessionList(user.username));
     });
+
+    const payload = JSON.stringify({
+      prompt: text,
+      username: user.username,
+      history: session.history
+    });
+    pyProc.stdin.write(payload);
+    pyProc.stdin.end();
   });
 
   // Handle Typing Indicators

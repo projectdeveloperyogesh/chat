@@ -71,8 +71,14 @@ def main():
     try:
         input_data = {}
         
-        # Parse command line arguments (--prompt, --username, --history) or JSON string
-        if len(sys.argv) > 1:
+        # 1. Prioritize reading JSON payload from stdin (safe against Windows CLI quote mangling)
+        raw_input = sys.stdin.read().strip()
+        if raw_input:
+            try:
+                input_data = json.loads(raw_input)
+            except Exception as pe:
+                input_data = {"prompt": raw_input, "username": "User"}
+        elif len(sys.argv) > 1:
             raw_arg = sys.argv[1]
             if raw_arg.startswith("{"):
                 try:
@@ -100,14 +106,7 @@ def main():
                         if "prompt" not in input_data:
                             input_data["prompt"] = arg
                         i += 1
-        else:
-            raw_input = sys.stdin.read().strip()
-            if raw_input:
-                try:
-                    input_data = json.loads(raw_input)
-                except Exception:
-                    input_data = {"prompt": raw_input, "username": "User"}
-        
+
         prompt = input_data.get("prompt", "").strip()
         username = input_data.get("username", "User").strip()
         history = input_data.get("history", [])

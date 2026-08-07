@@ -135,6 +135,10 @@ document.addEventListener('DOMContentLoaded', () => {
     esc = esc.replace(/```([\s\S]*?)```/g, '<pre><code>$1</code></pre>');
     // Inline code `...`
     esc = esc.replace(/`([^`]+)`/g, '<code>$1</code>');
+    // Markdown links [label](url)
+    esc = esc.replace(/\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g, '<a href="$2" target="_blank" rel="noopener noreferrer" class="chat-link">$1 <i class="fa-solid fa-arrow-up-right-from-square link-icon"></i></a>');
+    // Auto-link raw URLs (not inside tags or quotes)
+    esc = esc.replace(/(?<!href="|href='|>)(https?:\/\/[^\s<]+)/g, '<a href="$1" target="_blank" rel="noopener noreferrer" class="chat-link">$1 <i class="fa-solid fa-arrow-up-right-from-square link-icon"></i></a>');
     // Bold **...**
     esc = esc.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
     // Italic *...*

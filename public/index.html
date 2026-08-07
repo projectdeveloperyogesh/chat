@@ -202,8 +202,10 @@
       </div>
 
       <div class="api-docs-body">
-        <h3>⚡ Base URL</h3>
-        <code class="api-code-block">http://localhost:3000/api/v1</code>
+        <h3>⚡ Base URL & Health Endpoint</h3>
+        <a href="/api/v1/status" target="_blank" class="api-link-block">
+          <code class="api-code-block">http://localhost:3000/api/v1/status <i class="fa-solid fa-arrow-up-right-from-square"></i></code>
+        </a>
 
         <h3>🔌 Available REST Endpoints</h3>
         <div class="api-endpoint-list">
@@ -212,7 +214,7 @@
             <p>Send an AI prompt with multi-turn session memory and model selection.</p>
           </div>
           <div class="endpoint-card">
-            <span class="method-badge get">GET</span> <code>/api/v1/ai/sessions</code>
+            <span class="method-badge get">GET</span> <a href="/api/v1/ai/sessions" target="_blank" class="api-endpoint-link"><code>/api/v1/ai/sessions <i class="fa-solid fa-arrow-up-right-from-square"></i></code></a>
             <p>Retrieve AI conversation threads list.</p>
           </div>
           <div class="endpoint-card">
@@ -220,7 +222,7 @@
             <p>Post a live message to the Global Lounge chat room via WebSockets.</p>
           </div>
           <div class="endpoint-card">
-            <span class="method-badge get">GET</span> <code>/api/v1/status</code>
+            <span class="method-badge get">GET</span> <a href="/api/v1/status" target="_blank" class="api-endpoint-link"><code>/api/v1/status <i class="fa-solid fa-arrow-up-right-from-square"></i></code></a>
             <p>Check server health, active users count, and available AI models.</p>
           </div>
         </div>

@@ -608,6 +608,16 @@ body {
   gap: 6px;
 }
 
+.api-link-block {
+  text-decoration: none;
+  display: block;
+}
+
+.api-link-block:hover .api-code-block {
+  border-color: rgba(56, 189, 248, 0.4);
+  background: rgba(56, 189, 248, 0.1);
+}
+
 .api-code-block {
   display: block;
   background: rgba(0, 0, 0, 0.4);
@@ -617,6 +627,23 @@ body {
   font-family: 'Fira Code', monospace;
   font-size: 13px;
   border: 1px solid rgba(255, 255, 255, 0.08);
+  transition: all 0.2s ease;
+}
+
+.chat-link, .api-endpoint-link {
+  color: #38bdf8;
+  text-decoration: underline;
+  font-weight: 500;
+  transition: color 0.15s ease;
+}
+
+.chat-link:hover, .api-endpoint-link:hover {
+  color: #7dd3fc;
+}
+
+.chat-link .link-icon {
+  font-size: 10px;
+  margin-left: 2px;
 }
 
 .api-endpoint-list {

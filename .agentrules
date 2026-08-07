@@ -1,0 +1,8 @@
+# Agent Rules for NexusChat
+
+- **Main Entrypoint**: `server.js`
+- **Frontend Assets**: `public/index.html`, `public/style.css`, `public/app.js`
+- **Package Manager**: npm (run `cmd /c npm <cmd>` on Windows)
+- **Port Conflict Handling**: Automatic fallback in `server.js` from port 3000 to free port.
+- **Git Exclusions**: Keep `node_modules/` and `uploads/*` in `.gitignore`.
+- **Security**: Always sanitize text outputs using `escapeHTML()` in `public/app.js`.

@@ -7,11 +7,25 @@ Integrates Gemini / Antigravity AI models with Node.js backend.
 import sys
 import json
 import os
+import subprocess
 
 def generate_ai_response(prompt, username):
+    # 1. Primary Engine: Route prompt through Antigravity CLI (agy)
+    try:
+        cmd = ["agy", "--print", f"User '{username}' asks: {prompt}"]
+        result = subprocess.run(cmd, capture_output=True, text=True, timeout=90, encoding="utf-8")
+        if result.returncode == 0 and result.stdout.strip():
+            return {
+                "success": True,
+                "reply": result.stdout.strip(),
+                "model": "Antigravity CLI (Gemini 3.6 Flash)"
+            }
+    except Exception as err:
+        # Fallback if agy execution fails
+        pass
+
+    # 2. Secondary Engine: Try using google-genai / google.generativeai if API key is present
     api_key = os.environ.get("GEMINI_API_KEY") or os.environ.get("GOOGLE_API_KEY")
-    
-    # Try using google-genai or google.generativeai if installed and API key is present
     if api_key:
         try:
             import google.generativeai as genai
@@ -27,22 +41,18 @@ def generate_ai_response(prompt, username):
                     "model": "gemini-1.5-flash"
                 }
         except Exception as e:
-            # Fallback if genai fails or throws exception
             pass
 
-    # Intelligent Fallback Engine when GEMINI_API_KEY is not configured
+    # 3. Fallback Engine
     prompt_lower = prompt.lower()
-    
     if "hello" in prompt_lower or "hi" in prompt_lower or "hey" in prompt_lower:
         reply = f"Hello **{username}**! 👋 I am your **Yogesh Chat AI Assistant**. How can I help you today? You can ask me coding questions, explanations, writing help, or general knowledge!"
     elif "python" in prompt_lower:
-        reply = f"**Python** is a powerful high-level programming language! In Yogesh Chat, I run directly via a Python bridge (`ai_agent.py`). Here is a quick example:\n\n```python\ndef greet(name):\n    return f'Hello {name}, welcome to Yogesh Chat AI!'\n\nprint(greet('{username}'))\n```"
+        reply = f"**Python** is a powerful high-level programming language! In Yogesh Chat, I run directly via a Python bridge (`ai_agent.py`) calling **Antigravity CLI (`agy`)**."
     elif "node" in prompt_lower or "express" in prompt_lower or "socket" in prompt_lower:
         reply = f"**Node.js & Express** power the backend of Yogesh Chat! Messages are routed seamlessly through WebSockets (Socket.IO) and spawned asynchronously to `ai_agent.py` in Python."
-    elif "gemini" in prompt_lower or "model" in prompt_lower:
-        reply = f"I am connected to the **Gemini AI Model Engine**! To use live Gemini API calls, set `GEMINI_API_KEY=your_key` in your environment variables. Currently running via Python bridge `ai_agent.py`."
     else:
-        reply = f"That's a great question, **{username}**!\n\nRegarding: *\"{prompt}\"*\n\nHere is what I can tell you:\n1. **Context**: Yogesh Chat AI routes requests through a custom Python agent handler.\n2. **Insights**: Your input has been processed successfully.\n3. **Tip**: You can attach files or ask code questions anytime!"
+        reply = f"That's a great question, **{username}**!\n\nRegarding: *\"{prompt}\"*\n\nHere is what I can tell you:\n1. **Context**: Yogesh Chat AI routes requests through Antigravity CLI and Python agent handler.\n2. **Insights**: Your input has been processed successfully.\n3. **Tip**: You can ask any question or request code generation anytime!"
 
     return {
         "success": True,

@@ -249,7 +249,7 @@ io.on('connection', (socket) => {
     const payload = JSON.stringify({ prompt: text, username: user.username });
     const pyScriptPath = path.join(__dirname, 'ai_agent.py');
 
-    execFile('python', [pyScriptPath, payload], { cwd: __dirname }, (error, stdout, stderr) => {
+    execFile('python', [pyScriptPath, payload], { cwd: __dirname, maxBuffer: 10 * 1024 * 1024, timeout: 120000 }, (error, stdout, stderr) => {
       io.emit('ai:typing', { isTyping: false, username: 'Yogesh AI' });
 
       let replyText = "I encountered an issue processing your request. Please try again.";

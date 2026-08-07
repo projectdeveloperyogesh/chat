@@ -4,6 +4,7 @@ const { Server } = require('socket.io');
 const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
+const os = require('os');
 const cors = require('cors');
 
 const app = express();
@@ -228,12 +229,25 @@ io.on('connection', (socket) => {
 
 // Start Server with Fallback Port Handling
 function startServer(initialPort) {
-  server.listen(initialPort)
+  server.listen(initialPort, '0.0.0.0')
     .on('listening', () => {
       const port = server.address().port;
+      const networkInterfaces = os.networkInterfaces();
+      let networkIp = 'Unavailable';
+
+      for (const name of Object.keys(networkInterfaces)) {
+        for (const net of networkInterfaces[name]) {
+          if (net.family === 'IPv4' && !net.internal) {
+            networkIp = net.address;
+            break;
+          }
+        }
+      }
+
       console.log(`===================================================`);
-      console.log(`🚀 Chat & File Sharing Server running on port ${port}`);
-      console.log(`👉 Access URL: http://localhost:${port}`);
+      console.log(`🚀 Yogesh Chat Server running on port ${port}`);
+      console.log(`👉 Local:   http://localhost:${port}`);
+      console.log(`👉 Network: http://${networkIp}:${port}`);
       console.log(`===================================================`);
     })
     .on('error', (err) => {

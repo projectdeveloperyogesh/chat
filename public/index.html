@@ -96,6 +96,13 @@
         </div>
       </div>
 
+      <!-- Sidebar Footer API Docs -->
+      <div class="sidebar-section api-docs-section">
+        <button id="open-api-docs-btn" class="icon-text-btn full-width" title="View REST API Documentation">
+          <i class="fa-solid fa-code"></i> REST API Docs & Examples
+        </button>
+      </div>
+
     </aside>
 
     <!-- Sidebar Overlay for Mobile -->
@@ -182,6 +189,60 @@
         </form>
       </footer>
     </main>
+  </div>
+
+  <!-- API Documentation Modal -->
+  <div id="api-docs-modal" class="modal-overlay hidden">
+    <div class="modal-card api-modal-card">
+      <div class="modal-brand">
+        <div class="brand-logo"><i class="fa-solid fa-code"></i></div>
+        <h2>Yogesh Chat REST API Reference</h2>
+        <p>Connect programmatically from Python, cURL, Node.js, or external systems</p>
+        <button id="close-api-docs-btn" class="icon-btn lightbox-close"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+
+      <div class="api-docs-body">
+        <h3>⚡ Base URL</h3>
+        <code class="api-code-block">http://localhost:3000/api/v1</code>
+
+        <h3>🔌 Available REST Endpoints</h3>
+        <div class="api-endpoint-list">
+          <div class="endpoint-card">
+            <span class="method-badge post">POST</span> <code>/api/v1/ai/chat</code>
+            <p>Send an AI prompt with multi-turn session memory and model selection.</p>
+          </div>
+          <div class="endpoint-card">
+            <span class="method-badge get">GET</span> <code>/api/v1/ai/sessions</code>
+            <p>Retrieve AI conversation threads list.</p>
+          </div>
+          <div class="endpoint-card">
+            <span class="method-badge post">POST</span> <code>/api/v1/messages</code>
+            <p>Post a live message to the Global Lounge chat room via WebSockets.</p>
+          </div>
+          <div class="endpoint-card">
+            <span class="method-badge get">GET</span> <code>/api/v1/status</code>
+            <p>Check server health, active users count, and available AI models.</p>
+          </div>
+        </div>
+
+        <h3>💻 Code Examples</h3>
+        <div class="api-code-examples">
+          <h4>cURL Example (AI Chat)</h4>
+          <pre class="api-code"><code>curl -X POST http://localhost:3000/api/v1/ai/chat \
+  -H "Content-Type: application/json" \
+  -d '{"prompt": "Explain quantum physics", "model": "Gemini 3.6 Flash (High)"}'</code></pre>
+
+          <h4>Python Example</h4>
+          <pre class="api-code"><code>import requests
+
+res = requests.post("http://localhost:3000/api/v1/ai/chat", json={
+    "prompt": "Write a Python script",
+    "model": "Gemini 3.6 Flash (High)"
+})
+print(res.json()["reply"])</code></pre>
+        </div>
+      </div>
+    </div>
   </div>
 
   <!-- Image Lightbox Modal -->

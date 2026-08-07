@@ -87,6 +87,179 @@ app.post('/api/upload', upload.array('files', 5), (req, res) => {
   }
 });
 
+// ==========================================================================
+// Public REST API v1 Endpoints
+// ==========================================================================
+
+// GET /api/v1/status - System Health & Endpoints Info
+app.get('/api/v1/status', (req, res) => {
+  res.json({
+    status: 'online',
+    app: 'Yogesh Chat',
+    version: '1.0.0',
+    activeUsersCount: activeUsers.size,
+    aiSessionsCount: aiSessionsMap.size,
+    availableModels: [
+      'Gemini 3.6 Flash (High)',
+      'Gemini 3.1 Pro (High)',
+      'Gemini 3.5 Flash (High)',
+      'Claude Sonnet 4.6 (Thinking)',
+      'Claude Opus 4.6 (Thinking)',
+      'GPT-OSS 120B (Medium)'
+    ],
+    endpoints: [
+      { path: 'GET /api/v1/status', description: 'Check server status and AI capabilities' },
+      { path: 'POST /api/v1/ai/chat', description: 'Send an AI prompt and receive response with session memory' },
+      { path: 'GET /api/v1/ai/sessions', description: 'List AI conversation sessions' },
+      { path: 'POST /api/v1/messages', description: 'Broadcast a message to the Global Lounge chat room' },
+      { path: 'GET /api/v1/messages', description: 'Retrieve Global Lounge chat messages history' }
+    ]
+  });
+});
+
+// POST /api/v1/ai/chat - AI Prompt REST API
+app.post('/api/v1/ai/chat', (req, res) => {
+  const text = (req.body.prompt || req.body.text || '').trim();
+  if (!text) {
+    return res.status(400).json({ success: false, error: 'Prompt is required' });
+  }
+
+  const username = (req.body.username || 'API User').trim();
+  const reqModel = (req.body.model || 'Gemini 3.6 Flash (High)').trim();
+  let sessionId = (req.body.sessionId || '').trim();
+
+  let session = aiSessionsMap.get(sessionId);
+  if (!session) {
+    sessionId = 'session-' + Date.now() + '-' + Math.round(Math.random() * 1000);
+    session = {
+      id: sessionId,
+      title: text.length > 24 ? text.substring(0, 24) + '...' : text,
+      username: username,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+      messages: [],
+      history: []
+    };
+    aiSessionsMap.set(sessionId, session);
+  }
+
+  session.updatedAt = new Date().toISOString();
+
+  // User message object
+  const userMsg = {
+    id: 'ai-user-' + Date.now() + '-' + Math.round(Math.random() * 1000),
+    channel: 'ai',
+    sessionId: sessionId,
+    sender: { username, color: '#8b5cf6', id: 'api-user' },
+    text: text,
+    timestamp: new Date().toISOString()
+  };
+  session.messages.push(userMsg);
+  chatMessages.set(userMsg.id, userMsg);
+
+  // Spawn Python AI agent
+  const venvPythonPath = path.join(__dirname, '.venv', 'Scripts', 'python.exe');
+  const pythonCmd = fs.existsSync(venvPythonPath) ? venvPythonPath : 'python';
+  const pyScriptPath = path.join(__dirname, 'ai_agent.py');
+  const pyProc = spawn(pythonCmd, [pyScriptPath], { cwd: __dirname });
+
+  let stdoutData = '';
+  let stderrData = '';
+
+  pyProc.stdout.on('data', (d) => { stdoutData += d.toString(); });
+  pyProc.stderr.on('data', (d) => { stderrData += d.toString(); });
+
+  pyProc.on('close', () => {
+    let replyText = "I encountered an issue processing your request.";
+    let modelName = reqModel;
+
+    if (stdoutData.trim()) {
+      try {
+        const resObj = JSON.parse(stdoutData.trim());
+        if (resObj.success && resObj.reply) {
+          replyText = resObj.reply;
+          modelName = resObj.model || modelName;
+        } else if (resObj.error) {
+          replyText = `AI Error: ${resObj.error}`;
+        }
+      } catch (e) {
+        console.error("Failed to parse AI output:", stdoutData);
+      }
+    }
+
+    session.history.push({ role: username, text: text });
+    session.history.push({ role: 'Yogesh AI', text: replyText });
+    session.updatedAt = new Date().toISOString();
+
+    const aiMsg = {
+      id: 'ai-res-' + Date.now() + '-' + Math.round(Math.random() * 1000),
+      channel: 'ai',
+      sessionId: sessionId,
+      sender: { username: 'Yogesh AI', color: '#8b5cf6', id: 'ai-bot', isAi: true, model: modelName },
+      text: replyText,
+      timestamp: new Date().toISOString()
+    };
+    session.messages.push(aiMsg);
+    chatMessages.set(aiMsg.id, aiMsg);
+
+    // Broadcast live to WebSockets
+    io.emit('ai:message:new', userMsg);
+    io.emit('ai:message:new', aiMsg);
+
+    res.json({
+      success: true,
+      reply: replyText,
+      model: modelName,
+      sessionId: sessionId
+    });
+  });
+
+  const payload = JSON.stringify({
+    prompt: text,
+    username: username,
+    history: session.history,
+    model: reqModel
+  });
+  pyProc.stdin.write(payload);
+  pyProc.stdin.end();
+});
+
+// GET /api/v1/ai/sessions - List AI Sessions
+app.get('/api/v1/ai/sessions', (req, res) => {
+  const username = (req.query.username || '').trim();
+  const sessions = getUserSessionList(username || 'Yogesh');
+  res.json({ success: true, sessions });
+});
+
+// POST /api/v1/messages - Broadcast Message to Global Lounge
+app.post('/api/v1/messages', (req, res) => {
+  const text = (req.body.text || '').trim();
+  if (!text) {
+    return res.status(400).json({ success: false, error: 'Text is required' });
+  }
+
+  const username = (req.body.username || 'API Bot').trim();
+  const color = getUserColor(username);
+
+  const msg = {
+    id: 'msg-' + Date.now() + '-' + Math.round(Math.random() * 1000),
+    sender: { username, color, id: 'api-' + Date.now() },
+    text: text,
+    timestamp: new Date().toISOString()
+  };
+
+  chatMessages.set(msg.id, msg);
+  io.emit('message:new', msg);
+
+  res.json({ success: true, message: msg });
+});
+
+// GET /api/v1/messages - Global Lounge Messages History
+app.get('/api/v1/messages', (req, res) => {
+  const messages = Array.from(chatMessages.values()).filter(m => !m.channel || m.channel === 'global');
+  res.json({ success: true, messages });
+});
+
 // Socket.IO State Management
 const activeUsers = new Map(); // socket.id -> { username, color, joinedAt }
 const typingUsers = new Set(); // set of usernames currently typing

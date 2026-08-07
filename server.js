@@ -5,6 +5,7 @@ const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
 const os = require('os');
+const { execFile } = require('child_process');
 const cors = require('cors');
 
 const app = express();
@@ -215,6 +216,79 @@ io.on('connection', (socket) => {
 
     chatMessages.delete(msgId);
     io.emit('message:deleted', { id: msgId, deletedBy: user.username });
+  });
+
+  // Handle AI Assistant Prompt
+  socket.on('ai:send', (data) => {
+    const user = activeUsers.get(socket.id);
+    if (!user) return;
+
+    const text = (data.text || '').trim();
+    if (!text) return;
+
+    // 1. User Prompt Message object
+    const userMsg = {
+      id: 'ai-user-' + Date.now() + '-' + Math.round(Math.random() * 1000),
+      channel: 'ai',
+      sender: {
+        username: user.username,
+        color: user.color,
+        id: user.id
+      },
+      text: text,
+      timestamp: new Date().toISOString()
+    };
+
+    chatMessages.set(userMsg.id, userMsg);
+    io.emit('ai:message:new', userMsg);
+
+    // 2. Broadcast AI typing status
+    io.emit('ai:typing', { isTyping: true, username: 'Yogesh AI' });
+
+    // 3. Spawn Python AI Agent
+    const payload = JSON.stringify({ prompt: text, username: user.username });
+    const pyScriptPath = path.join(__dirname, 'ai_agent.py');
+
+    execFile('python', [pyScriptPath, payload], { cwd: __dirname }, (error, stdout, stderr) => {
+      io.emit('ai:typing', { isTyping: false, username: 'Yogesh AI' });
+
+      let replyText = "I encountered an issue processing your request. Please try again.";
+      let modelName = "gemini-2.5-flash";
+
+      if (!error && stdout) {
+        try {
+          const resObj = JSON.parse(stdout);
+          if (resObj.success && resObj.reply) {
+            replyText = resObj.reply;
+            modelName = resObj.model || modelName;
+          } else if (resObj.error) {
+            replyText = `AI Error: ${resObj.error}`;
+          }
+        } catch (e) {
+          console.error("Failed to parse AI output:", stdout);
+        }
+      } else if (error) {
+        console.error("Python AI agent execution error:", error, stderr);
+      }
+
+      // 4. AI Response Message object
+      const aiMsg = {
+        id: 'ai-res-' + Date.now() + '-' + Math.round(Math.random() * 1000),
+        channel: 'ai',
+        sender: {
+          username: 'Yogesh AI',
+          color: '#8b5cf6',
+          id: 'ai-bot',
+          isAi: true,
+          model: modelName
+        },
+        text: replyText,
+        timestamp: new Date().toISOString()
+      };
+
+      chatMessages.set(aiMsg.id, aiMsg);
+      io.emit('ai:message:new', aiMsg);
+    });
   });
 
   // Handle Typing Indicators

@@ -368,6 +368,65 @@ body {
   font-weight: 700;
 }
 
+.badge.ai-badge {
+  background: linear-gradient(135deg, rgba(139, 92, 246, 0.3), rgba(217, 70, 239, 0.3));
+  color: #d946ef;
+  border: 1px solid rgba(217, 70, 239, 0.3);
+}
+
+.channel-list {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.channel-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  border-radius: var(--radius-md);
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid transparent;
+}
+
+.channel-item:hover {
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--text-main);
+}
+
+.channel-item.active {
+  background: rgba(139, 92, 246, 0.15);
+  border-color: rgba(139, 92, 246, 0.3);
+  color: #fff;
+  font-weight: 600;
+}
+
+.channel-item i {
+  font-size: 14px;
+  color: var(--accent-secondary);
+}
+
+.channel-item.active i {
+  color: #d946ef;
+}
+
+.ai-model-tag {
+  font-size: 10px;
+  background: rgba(139, 92, 246, 0.2);
+  color: #c084fc;
+  padding: 1px 6px;
+  border-radius: 6px;
+  margin-left: 6px;
+  border: 1px solid rgba(192, 132, 252, 0.3);
+}
+
 .user-list {
   list-style: none;
   display: flex;

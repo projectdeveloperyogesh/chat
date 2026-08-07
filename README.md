@@ -6,7 +6,8 @@ A modern, high-performance real-time chat application built with **Node.js**, **
 
 ## 🌟 Key Features
 
-- 💬 **Real-Time Messaging**: Multi-user instant chat powered by WebSockets (Socket.IO).
+- 💬 **Normal Chat (`# global-lounge`)**: Multi-user instant chat powered by WebSockets (Socket.IO).
+- 🤖 **AI Assistant Chat (`🤖 # ai-assistant`)**: Integrated AI channel powered by a **Python AI Bridge** (`ai_agent.py`) using Gemini AI models (`gemini-2.5-flash`).
 - 🗑️ **Message & File Deletion**: Delete messages or uploaded files in real-time, automatically removing files from server disk storage.
 - 📁 **Instant File Sharing**:
   - Drag-and-drop file upload zone & attachment selector.

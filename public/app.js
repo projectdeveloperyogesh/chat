@@ -50,6 +50,12 @@ document.addEventListener('DOMContentLoaded', () => {
   let currentUser = null;
   let stagedFiles = [];
   let typingTimeout = null;
+  let activeChannel = 'global'; // 'global' | 'ai'
+  const messagesStore = { global: [], ai: [] };
+
+  // Channel Header Elements
+  const channelTitle = document.querySelector('.channel-info h2');
+  const channelSub = document.querySelector('.channel-info p');
 
   // --------------------------------------------------
   // Helper Functions
@@ -81,6 +87,21 @@ document.addEventListener('DOMContentLoaded', () => {
     );
   }
 
+  function parseMarkdown(text) {
+    let esc = escapeHTML(text);
+    // Code blocks ```...```
+    esc = esc.replace(/```([\s\S]*?)```/g, '<pre><code>$1</code></pre>');
+    // Inline code `...`
+    esc = esc.replace(/`([^`]+)`/g, '<code>$1</code>');
+    // Bold **...**
+    esc = esc.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
+    // Italic *...*
+    esc = esc.replace(/\*([^*]+)\*/g, '<em>$1</em>');
+    // Line breaks
+    esc = esc.replace(/\n/g, '<br>');
+    return esc;
+  }
+
   function getCategoryIcon(category) {
     switch (category) {
       case 'image': return 'fa-image';
@@ -96,6 +117,102 @@ document.addEventListener('DOMContentLoaded', () => {
   function scrollToBottom() {
     messageContainer.scrollTop = messageContainer.scrollHeight;
   }
+
+  // --------------------------------------------------
+  // Channel Switching
+  // --------------------------------------------------
+
+  function switchChannel(channel) {
+    if (activeChannel === channel) return;
+    activeChannel = channel;
+
+    // Update Sidebar Navigation active state
+    document.querySelectorAll('.channel-item').forEach(item => {
+      if (item.getAttribute('data-channel') === channel) {
+        item.classList.add('active');
+      } else {
+        item.classList.remove('active');
+      }
+    });
+
+    // Update Header Text & Icons
+    if (channel === 'ai') {
+      channelTitle.innerHTML = `<i class="fa-solid fa-robot"></i> ai-assistant <span class="badge ai-badge">Gemini AI</span>`;
+      channelSub.textContent = `Ask questions, generate code, or analyze topics with Python AI Agent`;
+    } else {
+      channelTitle.innerHTML = `<i class="fa-solid fa-hashtag"></i> global-lounge`;
+      channelSub.textContent = `Share messages, images, videos & documents instantly`;
+    }
+
+    renderChannelMessages();
+  }
+
+  function renderChannelMessages() {
+    messageContainer.innerHTML = '';
+
+    if (activeChannel === 'ai') {
+      if (messagesStore.ai.length === 0) {
+        const banner = document.createElement('div');
+        banner.className = 'chat-welcome-banner';
+        banner.innerHTML = `
+          <div class="welcome-icon" style="background: rgba(139, 92, 246, 0.15); color: #8b5cf6;">
+            <i class="fa-solid fa-robot"></i>
+          </div>
+          <h3>Welcome to Yogesh AI Assistant</h3>
+          <p>Ask anything! Powered by Python AI Agent & Gemini Model Engine.</p>
+        `;
+        messageContainer.appendChild(banner);
+      } else {
+        messagesStore.ai.forEach(node => messageContainer.appendChild(node.cloneNode(true)));
+      }
+    } else {
+      if (messagesStore.global.length === 0) {
+        const banner = document.createElement('div');
+        banner.className = 'chat-welcome-banner';
+        banner.innerHTML = `
+          <div class="welcome-icon"><i class="fa-solid fa-shield-halved"></i></div>
+          <h3>Welcome to the Global Lounge</h3>
+          <p>Share text, photos, audio, videos, or raw documents effortlessly.</p>
+        `;
+        messageContainer.appendChild(banner);
+      } else {
+        messagesStore.global.forEach(node => messageContainer.appendChild(node.cloneNode(true)));
+      }
+    }
+
+    // Re-bind click listeners for dynamically cloned message elements
+    bindMessageInteractions();
+    scrollToBottom();
+  }
+
+  function bindMessageInteractions() {
+    document.querySelectorAll('.msg-delete-btn').forEach(btn => {
+      btn.onclick = () => {
+        const msgId = btn.getAttribute('data-id');
+        if (confirm('Delete this message for everyone?')) {
+          socket.emit('message:delete', { id: msgId });
+        }
+      };
+    });
+
+    document.querySelectorAll('.preview-img').forEach(img => {
+      img.onclick = () => {
+        lightboxImg.src = img.getAttribute('data-url');
+        lightboxFilename.textContent = img.getAttribute('data-name');
+        lightboxDownload.href = img.getAttribute('data-url');
+        lightboxDownload.download = img.getAttribute('data-name');
+        lightboxModal.classList.remove('hidden');
+      };
+    });
+  }
+
+  // Bind channel item click listeners
+  document.querySelectorAll('.channel-item').forEach(item => {
+    item.addEventListener('click', () => {
+      const ch = item.getAttribute('data-channel');
+      switchChannel(ch);
+    });
+  });
 
   // --------------------------------------------------
   // Sidebar Mobile Toggle
@@ -265,20 +382,27 @@ document.addEventListener('DOMContentLoaded', () => {
 
     if (!text && !hasFiles) return;
 
-    if (hasFiles) {
-      const uploadedFiles = await uploadStagedFiles();
-      if (uploadedFiles.length > 0) {
-        socket.emit('file:share', {
-          files: uploadedFiles,
-          caption: text
-        });
-        stagedFiles = [];
-        renderStagedFiles();
+    if (activeChannel === 'ai') {
+      // AI Channel Submission
+      socket.emit('ai:send', { text });
+      chatMessageInput.value = '';
+    } else {
+      // Global Lounge Channel Submission
+      if (hasFiles) {
+        const uploadedFiles = await uploadStagedFiles();
+        if (uploadedFiles.length > 0) {
+          socket.emit('file:share', {
+            files: uploadedFiles,
+            caption: text
+          });
+          stagedFiles = [];
+          renderStagedFiles();
+          chatMessageInput.value = '';
+        }
+      } else {
+        socket.emit('message:send', { text });
         chatMessageInput.value = '';
       }
-    } else {
-      socket.emit('message:send', { text });
-      chatMessageInput.value = '';
     }
 
     socket.emit('typing:stop');
@@ -372,8 +496,11 @@ document.addEventListener('DOMContentLoaded', () => {
       }
     });
 
-    messageContainer.appendChild(msgWrapper);
-    scrollToBottom();
+    messagesStore.global.push(msgWrapper);
+    if (activeChannel === 'global') {
+      messageContainer.appendChild(msgWrapper);
+      scrollToBottom();
+    }
   });
 
   // Incoming Shared Files
@@ -453,8 +580,6 @@ document.addEventListener('DOMContentLoaded', () => {
       }
     });
 
-    messageContainer.appendChild(msgWrapper);
-
     // Bind Image Lightbox click event
     msgWrapper.querySelectorAll('.preview-img').forEach(img => {
       img.addEventListener('click', () => {
@@ -466,11 +591,72 @@ document.addEventListener('DOMContentLoaded', () => {
       });
     });
 
-    scrollToBottom();
+    messagesStore.global.push(msgWrapper);
+    if (activeChannel === 'global') {
+      messageContainer.appendChild(msgWrapper);
+      scrollToBottom();
+    }
+  });
+
+  // Incoming AI Channel Message
+  socket.on('ai:message:new', (msg) => {
+    const isOutgoing = msg.sender.username === currentUser?.username;
+    const isAiBot = msg.sender.isAi;
+
+    const msgWrapper = document.createElement('div');
+    msgWrapper.className = `msg-wrapper ${isOutgoing ? 'outgoing' : 'incoming'}`;
+    msgWrapper.setAttribute('data-id', msg.id);
+
+    const modelTagHTML = isAiBot ? `<span class="ai-model-tag">${msg.sender.model || 'Gemini AI'}</span>` : '';
+    const bubbleHTML = isAiBot ? parseMarkdown(msg.text) : escapeHTML(msg.text);
+
+    msgWrapper.innerHTML = `
+      <div class="msg-avatar" style="background-color: ${msg.sender.color}">
+        ${isAiBot ? '<i class="fa-solid fa-robot"></i>' : escapeHTML(msg.sender.username.charAt(0).toUpperCase())}
+      </div>
+      <div class="msg-body">
+        <div class="msg-header">
+          <span class="msg-sender">${escapeHTML(msg.sender.username)}</span>
+          ${modelTagHTML}
+          <span class="msg-time">${formatTime(msg.timestamp)}</span>
+          <button class="msg-delete-btn" data-id="${msg.id}" title="Delete Message">
+            <i class="fa-solid fa-trash-can"></i>
+          </button>
+        </div>
+        <div class="msg-bubble">
+          ${bubbleHTML}
+        </div>
+      </div>
+    `;
+
+    msgWrapper.querySelector('.msg-delete-btn').addEventListener('click', () => {
+      if (confirm('Delete this AI chat message?')) {
+        socket.emit('message:delete', { id: msg.id });
+      }
+    });
+
+    messagesStore.ai.push(msgWrapper);
+    if (activeChannel === 'ai') {
+      messageContainer.appendChild(msgWrapper);
+      scrollToBottom();
+    }
+  });
+
+  // AI Typing Status
+  socket.on('ai:typing', ({ isTyping, username }) => {
+    if (isTyping && activeChannel === 'ai') {
+      typingText.textContent = `${username} is generating answer...`;
+      typingIndicator.classList.remove('hidden');
+    } else {
+      typingIndicator.classList.add('hidden');
+    }
   });
 
   // Realtime Message Deletion Listener
   socket.on('message:deleted', ({ id }) => {
+    messagesStore.global = messagesStore.global.filter(node => node.getAttribute('data-id') !== id);
+    messagesStore.ai = messagesStore.ai.filter(node => node.getAttribute('data-id') !== id);
+
     const elem = document.querySelector(`.msg-wrapper[data-id="${id}"]`);
     if (elem) {
       elem.style.transition = 'all 0.3s ease';

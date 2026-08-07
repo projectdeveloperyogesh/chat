@@ -14,35 +14,8 @@
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
-  <!-- Join Modal -->
-  <div id="join-modal" class="modal-overlay">
-    <div class="modal-card">
-      <div class="modal-brand">
-        <div class="brand-logo">
-          <i class="fa-solid fa-comments"></i>
-        </div>
-        <h2>Welcome to Yogesh Chat</h2>
-        <p>Real-time conversations & high-speed file sharing</p>
-      </div>
-      <form id="join-form">
-        <div class="input-group">
-          <label for="username-input">Choose your handle</label>
-          <div class="input-wrapper">
-            <i class="fa-solid fa-user input-icon"></i>
-            <input type="text" id="username-input" placeholder="e.g. Alex, CyberCoder..." autocomplete="off" required maxlength="25">
-          </div>
-          <span id="join-error" class="error-msg"></span>
-        </div>
-        <button type="submit" id="join-btn" class="primary-btn">
-          <span>Join Chat</span>
-          <i class="fa-solid fa-arrow-right"></i>
-        </button>
-      </form>
-    </div>
-  </div>
-
   <!-- Main Application Layout -->
-  <div id="app-container" class="app-layout hidden">
+  <div id="app-container" class="app-layout">
     
     <!-- Sidebar -->
     <aside id="sidebar" class="sidebar">
@@ -61,9 +34,9 @@
 
       <!-- User Info Box -->
       <div class="current-user-card">
-        <div id="my-avatar" class="avatar-circle">?</div>
+        <div id="my-avatar" class="avatar-circle">Y</div>
         <div class="user-details">
-          <span id="my-username" class="my-username">User</span>
+          <span id="my-username" class="my-username">Yogesh</span>
           <span class="user-role">Connected</span>
         </div>
       </div>
@@ -74,20 +47,20 @@
           <span>Channels</span>
         </div>
         <ul class="channel-list">
-          <li class="channel-item active" data-channel="global">
-            <i class="fa-solid fa-hashtag"></i>
-            <span>global-lounge</span>
-          </li>
-          <li class="channel-item" data-channel="ai">
+          <li class="channel-item active" data-channel="ai">
             <i class="fa-solid fa-robot"></i>
             <span>ai-assistant</span>
             <span class="badge ai-badge">Gemini AI</span>
+          </li>
+          <li class="channel-item" data-channel="global">
+            <i class="fa-solid fa-hashtag"></i>
+            <span>global-lounge</span>
           </li>
         </ul>
       </div>
 
       <!-- AI Threads Sub-Section -->
-      <div id="ai-threads-section" class="sidebar-section ai-threads-section hidden">
+      <div id="ai-threads-section" class="sidebar-section ai-threads-section">
         <div class="section-title">
           <span>AI Threads</span>
           <button id="add-ai-thread-btn" class="icon-text-btn" title="Create New AI Thread">
@@ -137,12 +110,12 @@
             <i class="fa-solid fa-bars"></i>
           </button>
           <div class="channel-info">
-            <h2><i class="fa-solid fa-hashtag"></i> global-lounge</h2>
-            <p>Share messages, images, videos & documents instantly</p>
+            <h2><i class="fa-solid fa-robot"></i> ai-assistant <span class="badge ai-badge">Gemini AI</span></h2>
+            <p>Ask questions, generate code, or discuss topics with Antigravity CLI</p>
           </div>
         </div>
         <div class="header-right">
-          <button id="new-ai-session-btn" class="primary-btn sm hidden" title="Start a fresh AI conversation session">
+          <button id="new-ai-session-btn" class="primary-btn sm" title="Start a fresh AI conversation session">
             <i class="fa-solid fa-plus"></i> New AI Thread
           </button>
           <div class="user-avatars-stack" id="header-avatars">

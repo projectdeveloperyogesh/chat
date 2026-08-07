@@ -50,7 +50,7 @@ document.addEventListener('DOMContentLoaded', () => {
   let currentUser = null;
   let stagedFiles = [];
   let typingTimeout = null;
-  let activeChannel = 'global'; // 'global' | 'ai'
+  let activeChannel = 'ai'; // Default to AI Assistant channel ('ai' | 'global')
   const messagesStore = { global: [], ai: [] };
 
   // AI Conversation Session ID (persisted per browser session)
@@ -266,31 +266,27 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   // --------------------------------------------------
-  // Join Flow
+  // Auto Join Flow (Direct Open)
   // --------------------------------------------------
 
-  joinForm.addEventListener('submit', (e) => {
-    e.preventDefault();
-    const username = usernameInput.value.trim();
-    if (!username) return;
-
-    joinError.textContent = '';
-
-    socket.emit('user:join', { username }, (response) => {
-      if (response.success) {
+  function initAutoJoin() {
+    const autoUsername = 'Yogesh';
+    socket.emit('user:join', { username: autoUsername }, (response) => {
+      if (response && response.success) {
         currentUser = response.user;
-        myUsername.textContent = currentUser.username;
-        myAvatar.textContent = currentUser.username.charAt(0);
-        myAvatar.style.backgroundColor = currentUser.color;
-
-        joinModal.classList.add('hidden');
-        appContainer.classList.remove('hidden');
+        if (myUsername) myUsername.textContent = currentUser.username;
+        if (myAvatar) {
+          myAvatar.textContent = currentUser.username.charAt(0);
+          myAvatar.style.backgroundColor = currentUser.color;
+        }
         chatMessageInput.focus();
-      } else {
-        joinError.textContent = response.message || 'Failed to join.';
+        socket.emit('ai:session:list');
+        renderChannelMessages();
       }
     });
-  });
+  }
+
+  initAutoJoin();
 
   // --------------------------------------------------
   // File Upload & Staging

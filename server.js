@@ -91,6 +91,7 @@ app.post('/api/upload', upload.array('files', 5), (req, res) => {
 const activeUsers = new Map(); // socket.id -> { username, color, joinedAt }
 const typingUsers = new Set(); // set of usernames currently typing
 const chatMessages = new Map(); // messageId -> msgObj
+const aiHistories = new Map(); // sessionId -> [{ role, text }]
 
 // Generate consistent avatar color based on username
 function getUserColor(username) {
@@ -226,6 +227,9 @@ io.on('connection', (socket) => {
     const text = (data.text || '').trim();
     if (!text) return;
 
+    const sessionId = (data.sessionId || ('session-' + user.username)).trim();
+    const sessionHistory = aiHistories.get(sessionId) || [];
+
     // 1. User Prompt Message object
     const userMsg = {
       id: 'ai-user-' + Date.now() + '-' + Math.round(Math.random() * 1000),
@@ -245,11 +249,9 @@ io.on('connection', (socket) => {
     // 2. Broadcast AI typing status
     io.emit('ai:typing', { isTyping: true, username: 'Yogesh AI' });
 
-    const sessionId = (data.sessionId || ('session-' + user.username)).trim();
-
-    // 3. Spawn Python AI Agent with Session ID
+    // 3. Spawn Python AI Agent with Session History
     const pyScriptPath = path.join(__dirname, 'ai_agent.py');
-    const pyArgs = [pyScriptPath, '--prompt', text, '--username', user.username, '--session', sessionId];
+    const pyArgs = [pyScriptPath, '--prompt', text, '--username', user.username, '--history', JSON.stringify(sessionHistory)];
 
     execFile('python', pyArgs, { cwd: __dirname, maxBuffer: 10 * 1024 * 1024, timeout: 120000 }, (error, stdout, stderr) => {
       io.emit('ai:typing', { isTyping: false, username: 'Yogesh AI' });
@@ -272,6 +274,11 @@ io.on('connection', (socket) => {
       } else if (error) {
         console.error("Python AI agent execution error:", error, stderr);
       }
+
+      // Update multi-turn session history
+      sessionHistory.push({ role: user.username, text: text });
+      sessionHistory.push({ role: 'Yogesh AI', text: replyText });
+      aiHistories.set(sessionId, sessionHistory);
 
       // 4. AI Response Message object
       const aiMsg = {

@@ -91,7 +91,21 @@ app.post('/api/upload', upload.array('files', 5), (req, res) => {
 const activeUsers = new Map(); // socket.id -> { username, color, joinedAt }
 const typingUsers = new Set(); // set of usernames currently typing
 const chatMessages = new Map(); // messageId -> msgObj
-const aiHistories = new Map(); // sessionId -> [{ role, text }]
+const aiSessionsMap = new Map(); // sessionId -> { id, title, username, createdAt, updatedAt, messages: [], history: [] }
+
+function getUserSessionList(username) {
+  const list = [];
+  for (const s of aiSessionsMap.values()) {
+    if (s.username.toLowerCase() === username.toLowerCase()) {
+      list.push({
+        id: s.id,
+        title: s.title,
+        updatedAt: s.updatedAt
+      });
+    }
+  }
+  return list.sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt));
+}
 
 // Generate consistent avatar color based on username
 function getUserColor(username) {
@@ -146,6 +160,63 @@ io.on('connection', (socket) => {
     io.emit('users:update', Array.from(activeUsers.values()));
 
     if (callback) callback({ success: true, user: userObj });
+  });
+
+  // Handle AI Session List Request
+  socket.on('ai:session:list', () => {
+    const user = activeUsers.get(socket.id);
+    if (!user) return;
+    socket.emit('ai:session:list:update', getUserSessionList(user.username));
+  });
+
+  // Handle AI Session Select
+  socket.on('ai:session:select', (data, callback) => {
+    const user = activeUsers.get(socket.id);
+    if (!user || !data || !data.sessionId) return;
+    const session = aiSessionsMap.get(data.sessionId);
+    if (session && callback) {
+      callback({
+        success: true,
+        session: {
+          id: session.id,
+          title: session.title,
+          messages: session.messages
+        }
+      });
+    } else if (callback) {
+      callback({ success: false, message: 'Session not found' });
+    }
+  });
+
+  // Handle AI Session Create
+  socket.on('ai:session:create', (data, callback) => {
+    const user = activeUsers.get(socket.id);
+    if (!user) return;
+
+    const newId = 'session-' + Date.now() + '-' + Math.round(Math.random() * 1000);
+    const newSession = {
+      id: newId,
+      title: 'New Conversation',
+      username: user.username,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+      messages: [],
+      history: []
+    };
+
+    aiSessionsMap.set(newId, newSession);
+    socket.emit('ai:session:list:update', getUserSessionList(user.username));
+
+    if (callback) callback({ success: true, session: newSession });
+  });
+
+  // Handle AI Session Delete
+  socket.on('ai:session:delete', (data) => {
+    const user = activeUsers.get(socket.id);
+    if (!user || !data || !data.sessionId) return;
+
+    aiSessionsMap.delete(data.sessionId);
+    socket.emit('ai:session:list:update', getUserSessionList(user.username));
   });
 
   // Handle Text Message
@@ -227,13 +298,32 @@ io.on('connection', (socket) => {
     const text = (data.text || '').trim();
     if (!text) return;
 
-    const sessionId = (data.sessionId || ('session-' + user.username)).trim();
-    const sessionHistory = aiHistories.get(sessionId) || [];
+    let sessionId = (data.sessionId || '').trim();
+    let session = aiSessionsMap.get(sessionId);
+
+    if (!session) {
+      sessionId = 'session-' + Date.now() + '-' + Math.round(Math.random() * 1000);
+      session = {
+        id: sessionId,
+        title: text.length > 24 ? text.substring(0, 24) + '...' : text,
+        username: user.username,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        messages: [],
+        history: []
+      };
+      aiSessionsMap.set(sessionId, session);
+    } else if (session.title === 'New Conversation' || !session.title) {
+      session.title = text.length > 24 ? text.substring(0, 24) + '...' : text;
+    }
+
+    session.updatedAt = new Date().toISOString();
 
     // 1. User Prompt Message object
     const userMsg = {
       id: 'ai-user-' + Date.now() + '-' + Math.round(Math.random() * 1000),
       channel: 'ai',
+      sessionId: sessionId,
       sender: {
         username: user.username,
         color: user.color,
@@ -243,18 +333,20 @@ io.on('connection', (socket) => {
       timestamp: new Date().toISOString()
     };
 
+    session.messages.push(userMsg);
     chatMessages.set(userMsg.id, userMsg);
-    io.emit('ai:message:new', userMsg);
+    socket.emit('ai:message:new', userMsg);
+    socket.emit('ai:session:list:update', getUserSessionList(user.username));
 
     // 2. Broadcast AI typing status
-    io.emit('ai:typing', { isTyping: true, username: 'Yogesh AI' });
+    socket.emit('ai:typing', { isTyping: true, username: 'Yogesh AI' });
 
     // 3. Spawn Python AI Agent with Session History
     const pyScriptPath = path.join(__dirname, 'ai_agent.py');
-    const pyArgs = [pyScriptPath, '--prompt', text, '--username', user.username, '--history', JSON.stringify(sessionHistory)];
+    const pyArgs = [pyScriptPath, '--prompt', text, '--username', user.username, '--history', JSON.stringify(session.history)];
 
     execFile('python', pyArgs, { cwd: __dirname, maxBuffer: 10 * 1024 * 1024, timeout: 120000 }, (error, stdout, stderr) => {
-      io.emit('ai:typing', { isTyping: false, username: 'Yogesh AI' });
+      socket.emit('ai:typing', { isTyping: false, username: 'Yogesh AI' });
 
       let replyText = "I encountered an issue processing your request. Please try again.";
       let modelName = "gemini-2.5-flash";
@@ -275,15 +367,16 @@ io.on('connection', (socket) => {
         console.error("Python AI agent execution error:", error, stderr);
       }
 
-      // Update multi-turn session history
-      sessionHistory.push({ role: user.username, text: text });
-      sessionHistory.push({ role: 'Yogesh AI', text: replyText });
-      aiHistories.set(sessionId, sessionHistory);
+      // Update multi-turn session history & messages
+      session.history.push({ role: user.username, text: text });
+      session.history.push({ role: 'Yogesh AI', text: replyText });
+      session.updatedAt = new Date().toISOString();
 
       // 4. AI Response Message object
       const aiMsg = {
         id: 'ai-res-' + Date.now() + '-' + Math.round(Math.random() * 1000),
         channel: 'ai',
+        sessionId: sessionId,
         sender: {
           username: 'Yogesh AI',
           color: '#8b5cf6',
@@ -295,8 +388,10 @@ io.on('connection', (socket) => {
         timestamp: new Date().toISOString()
       };
 
+      session.messages.push(aiMsg);
       chatMessages.set(aiMsg.id, aiMsg);
-      io.emit('ai:message:new', aiMsg);
+      socket.emit('ai:message:new', aiMsg);
+      socket.emit('ai:session:list:update', getUserSessionList(user.username));
     });
   });
 

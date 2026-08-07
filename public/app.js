@@ -60,10 +60,15 @@ document.addEventListener('DOMContentLoaded', () => {
     localStorage.setItem('yogesh_ai_session_id', aiSessionId);
   }
 
-  // Channel Header Elements
+  // Channel & Session Header Elements
   const channelTitle = document.querySelector('.channel-info h2');
   const channelSub = document.querySelector('.channel-info p');
   const newAiSessionBtn = document.getElementById('new-ai-session-btn');
+
+  // AI Sidebar Thread Elements
+  const aiThreadsSection = document.getElementById('ai-threads-section');
+  const addAiThreadBtn = document.getElementById('add-ai-thread-btn');
+  const aiSessionList = document.getElementById('ai-session-list');
 
   // --------------------------------------------------
   // Helper Functions
@@ -127,7 +132,7 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   // --------------------------------------------------
-  // Channel Switching
+  // Channel & Session Switching
   // --------------------------------------------------
 
   function switchChannel(channel) {
@@ -146,25 +151,33 @@ document.addEventListener('DOMContentLoaded', () => {
     // Update Header Text & Icons
     if (channel === 'ai') {
       channelTitle.innerHTML = `<i class="fa-solid fa-robot"></i> ai-assistant <span class="badge ai-badge">Gemini AI</span>`;
-      channelSub.textContent = `Ask questions, generate code, or discuss multi-turn topics with Antigravity CLI`;
+      channelSub.textContent = `Ask questions, generate code, or discuss topics with Antigravity CLI`;
       if (newAiSessionBtn) newAiSessionBtn.classList.remove('hidden');
+      if (aiThreadsSection) aiThreadsSection.classList.remove('hidden');
+      socket.emit('ai:session:list');
     } else {
       channelTitle.innerHTML = `<i class="fa-solid fa-hashtag"></i> global-lounge`;
       channelSub.textContent = `Share messages, images, videos & documents instantly`;
       if (newAiSessionBtn) newAiSessionBtn.classList.add('hidden');
+      if (aiThreadsSection) aiThreadsSection.classList.add('hidden');
     }
 
     renderChannelMessages();
   }
 
-  if (newAiSessionBtn) {
-    newAiSessionBtn.addEventListener('click', () => {
-      aiSessionId = 'session-' + Date.now() + '-' + Math.round(Math.random() * 1000);
-      localStorage.setItem('yogesh_ai_session_id', aiSessionId);
-      messagesStore.ai = [];
-      renderChannelMessages();
+  function createNewAiSession() {
+    socket.emit('ai:session:create', {}, (res) => {
+      if (res && res.success && res.session) {
+        aiSessionId = res.session.id;
+        localStorage.setItem('yogesh_ai_session_id', aiSessionId);
+        messagesStore.ai = [];
+        renderChannelMessages();
+      }
     });
   }
+
+  if (newAiSessionBtn) newAiSessionBtn.addEventListener('click', createNewAiSession);
+  if (addAiThreadBtn) addAiThreadBtn.addEventListener('click', createNewAiSession);
 
   function renderChannelMessages() {
     messageContainer.innerHTML = '';
@@ -670,6 +683,111 @@ document.addEventListener('DOMContentLoaded', () => {
       typingIndicator.classList.add('hidden');
     }
   });
+
+  // AI Sessions List Update Listener
+  socket.on('ai:session:list:update', (sessions) => {
+    if (!aiSessionList) return;
+    aiSessionList.innerHTML = '';
+
+    if (!sessions || sessions.length === 0) {
+      const emptyLi = document.createElement('li');
+      emptyLi.className = 'ai-session-item';
+      emptyLi.style.justifyContent = 'center';
+      emptyLi.style.opacity = '0.6';
+      emptyLi.innerHTML = `<span class="session-title">No threads yet</span>`;
+      aiSessionList.appendChild(emptyLi);
+      return;
+    }
+
+    sessions.forEach(session => {
+      const li = document.createElement('li');
+      const isActive = session.id === aiSessionId;
+      li.className = `ai-session-item ${isActive ? 'active' : ''}`;
+      li.setAttribute('data-session-id', session.id);
+
+      li.innerHTML = `
+        <span class="session-title">
+          <i class="fa-solid fa-message"></i>
+          ${escapeHTML(session.title || 'Conversation')}
+        </span>
+        <button class="delete-session-btn" data-session-id="${session.id}" title="Delete Thread">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+      `;
+
+      // Select session on click
+      li.addEventListener('click', (e) => {
+        if (e.target.closest('.delete-session-btn')) return;
+        selectAiSession(session.id);
+      });
+
+      // Delete session on click
+      li.querySelector('.delete-session-btn').addEventListener('click', (e) => {
+        e.stopPropagation();
+        if (confirm(`Delete AI Thread "${session.title}"?`)) {
+          socket.emit('ai:session:delete', { sessionId: session.id });
+          if (session.id === aiSessionId) {
+            createNewAiSession();
+          }
+        }
+      });
+
+      aiSessionList.appendChild(li);
+    });
+  });
+
+  function selectAiSession(sessionId) {
+    aiSessionId = sessionId;
+    localStorage.setItem('yogesh_ai_session_id', aiSessionId);
+
+    socket.emit('ai:session:select', { sessionId }, (res) => {
+      if (res && res.success && res.session) {
+        messagesStore.ai = [];
+        if (res.session.messages) {
+          res.session.messages.forEach(msg => {
+            const isOutgoing = msg.sender.username === currentUser?.username;
+            const isAiBot = msg.sender.isAi;
+
+            const msgWrapper = document.createElement('div');
+            msgWrapper.className = `msg-wrapper ${isOutgoing ? 'outgoing' : 'incoming'}`;
+            msgWrapper.setAttribute('data-id', msg.id);
+
+            const modelTagHTML = isAiBot ? `<span class="ai-model-tag">${msg.sender.model || 'Gemini AI'}</span>` : '';
+            const bubbleHTML = isAiBot ? parseMarkdown(msg.text) : escapeHTML(msg.text);
+
+            msgWrapper.innerHTML = `
+              <div class="msg-avatar" style="background-color: ${msg.sender.color}">
+                ${isAiBot ? '<i class="fa-solid fa-robot"></i>' : escapeHTML(msg.sender.username.charAt(0).toUpperCase())}
+              </div>
+              <div class="msg-body">
+                <div class="msg-header">
+                  <span class="msg-sender">${escapeHTML(msg.sender.username)}</span>
+                  ${modelTagHTML}
+                  <span class="msg-time">${formatTime(msg.timestamp)}</span>
+                  <button class="msg-delete-btn" data-id="${msg.id}" title="Delete Message">
+                    <i class="fa-solid fa-trash-can"></i>
+                  </button>
+                </div>
+                <div class="msg-bubble">
+                  ${bubbleHTML}
+                </div>
+              </div>
+            `;
+
+            msgWrapper.querySelector('.msg-delete-btn').addEventListener('click', () => {
+              if (confirm('Delete this AI chat message?')) {
+                socket.emit('message:delete', { id: msg.id });
+              }
+            });
+
+            messagesStore.ai.push(msgWrapper);
+          });
+        }
+        renderChannelMessages();
+        socket.emit('ai:session:list');
+      }
+    });
+  }
 
   // Realtime Message Deletion Listener
   socket.on('message:deleted', ({ id }) => {

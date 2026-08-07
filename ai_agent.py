@@ -22,15 +22,47 @@ def generate_ai_response(prompt, username, history=None, selected_model="Gemini 
     
     full_prompt += f"{username}: {prompt}\nYogesh AI:"
 
-    # 1. Primary Engine: Route prompt through Antigravity CLI (agy --model <selected_model> --print)
+    # Map model selections to exact agy model names & effort levels
+    model_map = {
+        "gemini-3.6-flash": ("Gemini 3.6 Flash (High)", "high"),
+        "gemini 3.6 flash (high)": ("Gemini 3.6 Flash (High)", "high"),
+        "gemini-3.6-pro": ("Gemini 3.1 Pro (High)", "high"),
+        "gemini 3.1 pro (high)": ("Gemini 3.1 Pro (High)", "high"),
+        "gemini-3.5-flash": ("Gemini 3.5 Flash (High)", "high"),
+        "gemini 3.5 flash (high)": ("Gemini 3.5 Flash (High)", "high"),
+        "claude-3.7-sonnet": ("Claude Sonnet 4.6 (Thinking)", "high"),
+        "claude sonnet 4.6 (thinking)": ("Claude Sonnet 4.6 (Thinking)", "high"),
+        "claude opus 4.6 (thinking)": ("Claude Opus 4.6 (Thinking)", "high"),
+        "gpt-oss 120b (medium)": ("GPT-OSS 120B (Medium)", "medium"),
+    }
+
+    target_model, target_effort = model_map.get(
+        selected_model.lower(),
+        (selected_model, "high")
+    )
+
+    # 1. Primary Engine: Route prompt through Antigravity CLI with model & effort
     try:
-        cmd = ["agy", "--model", selected_model, "--print", full_prompt]
+        cmd = ["agy", "--model", target_model, "--effort", target_effort, "--print", full_prompt]
         result = subprocess.run(cmd, capture_output=True, text=True, timeout=90, encoding="utf-8")
         if result.returncode == 0 and result.stdout.strip():
             return {
                 "success": True,
                 "reply": result.stdout.strip(),
-                "model": f"Antigravity CLI ({selected_model})"
+                "model": f"Antigravity CLI ({target_model})"
+            }
+    except Exception as err:
+        pass
+
+    # 1b. Default agy fallback (without --model flag to use active system default)
+    try:
+        cmd_def = ["agy", "--print", full_prompt]
+        result_def = subprocess.run(cmd_def, capture_output=True, text=True, timeout=90, encoding="utf-8")
+        if result_def.returncode == 0 and result_def.stdout.strip():
+            return {
+                "success": True,
+                "reply": result_def.stdout.strip(),
+                "model": "Antigravity CLI (Gemini 3.6 Flash)"
             }
     except Exception as err:
         pass

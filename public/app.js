@@ -425,9 +425,15 @@ document.addEventListener('DOMContentLoaded', () => {
     if (!text && !hasFiles) return;
 
     if (activeChannel === 'ai') {
-      // AI Channel Submission with Multi-Turn Conversation Session ID and Selected Model
-      socket.emit('ai:send', { text, sessionId: aiSessionId, model: selectedModel });
+      let uploadedFiles = [];
+      if (hasFiles) {
+        uploadedFiles = await uploadStagedFiles();
+        stagedFiles = [];
+        renderStagedFiles();
+      }
+      socket.emit('ai:send', { text, sessionId: aiSessionId, model: selectedModel, files: uploadedFiles });
       chatMessageInput.value = '';
+    }
     } else {
       // Global Lounge Channel Submission
       if (hasFiles) {
@@ -652,6 +658,42 @@ document.addEventListener('DOMContentLoaded', () => {
     const modelTagHTML = isAiBot ? `<span class="ai-model-tag">${msg.sender.model || 'Gemini AI'}</span>` : '';
     const bubbleHTML = isAiBot ? parseMarkdown(msg.text) : escapeHTML(msg.text);
 
+    let filesHTML = '';
+    if (msg.files && Array.isArray(msg.files) && msg.files.length > 0) {
+      const filesGrid = msg.files.map(f => {
+        const fileCategory = f.category || 'document';
+        const iconClass = getCategoryIcon(fileCategory);
+        if (fileCategory === 'image') {
+          return `
+            <div class="file-card image-card">
+              <div class="image-preview-wrapper">
+                <img src="${f.url}" alt="${escapeHTML(f.originalname)}" class="preview-img" data-url="${f.url}" data-name="${escapeHTML(f.originalname)}">
+              </div>
+              <div class="file-meta">
+                <span class="file-name">${escapeHTML(f.originalname)}</span>
+                <span class="file-size">${formatBytes(f.size)}</span>
+              </div>
+            </div>
+          `;
+        }
+        return `
+          <div class="file-card generic-card">
+            <div class="file-icon-box">
+              <i class="fa-solid ${iconClass}"></i>
+            </div>
+            <div class="file-info-box">
+              <span class="file-name">${escapeHTML(f.originalname)}</span>
+              <span class="file-size">${formatBytes(f.size)}</span>
+            </div>
+            <a href="${f.url}" download="${escapeHTML(f.originalname)}" class="file-download-btn" title="Download File">
+              <i class="fa-solid fa-download"></i>
+            </a>
+          </div>
+        `;
+      }).join('');
+      filesHTML = `<div class="files-grid" style="margin-top: 8px;">${filesGrid}</div>`;
+    }
+
     msgWrapper.innerHTML = `
       <div class="msg-avatar" style="background-color: ${msg.sender.color}">
         ${isAiBot ? '<i class="fa-solid fa-robot"></i>' : escapeHTML(msg.sender.username.charAt(0).toUpperCase())}
@@ -667,6 +709,7 @@ document.addEventListener('DOMContentLoaded', () => {
         </div>
         <div class="msg-bubble">
           ${bubbleHTML}
+          ${filesHTML}
         </div>
       </div>
     `;

@@ -9,9 +9,58 @@ import json
 import os
 import subprocess
 
-def generate_ai_response(prompt, username, history=None, selected_model="Gemini 3.6 Flash (High)"):
+def extract_text_from_file(file_info):
+    filepath = file_info.get("filepath", "")
+    filename = file_info.get("originalname") or file_info.get("filename") or os.path.basename(filepath)
+    if not filepath or not os.path.exists(filepath):
+        return f"[File {filename} not found]"
+
+    ext = os.path.splitext(filepath)[1].lower()
+
+    # 1. PDF Files
+    if ext == ".pdf":
+        try:
+            from pypdf import PdfReader
+            reader = PdfReader(filepath)
+            text = ""
+            for page_num, page in enumerate(reader.pages, 1):
+                page_text = page.extract_text()
+                if page_text:
+                    text += f"\n--- Page {page_num} ---\n" + page_text
+            return text.strip() if text.strip() else "[Empty PDF document]"
+        except Exception as e:
+            return f"[Error reading PDF {filename}: {str(e)}]"
+
+    # 2. Word Documents (.docx)
+    elif ext in (".docx", ".doc"):
+        try:
+            import docx
+            doc = docx.Document(filepath)
+            full_text = [para.text for para in doc.paragraphs if para.text.strip()]
+            return "\n".join(full_text) if full_text else "[Empty Word document]"
+        except Exception as e:
+            return f"[Error reading Word document {filename}: {str(e)}]"
+
+    # 3. Plain Text & Code Files (.txt, .md, .json, .csv, .py, .js, .html, etc.)
+    else:
+        try:
+            with open(filepath, "r", encoding="utf-8", errors="ignore") as f:
+                content = f.read(100000)
+                return content.strip() if content.strip() else "[Empty text file]"
+        except Exception as e:
+            return f"[Error reading file {filename}: {str(e)}]"
+
+def generate_ai_response(prompt, username, history=None, selected_model="Gemini 3.6 Flash (High)", files=None):
+    # Format attached files into context
+    doc_context = ""
+    if files and isinstance(files, list):
+        for f in files:
+            fname = f.get("originalname") or f.get("filename") or "document"
+            extracted_text = extract_text_from_file(f)
+            doc_context += f"\n\n--- ATTACHED DOCUMENT: {fname} ---\n{extracted_text}\n--- END OF ATTACHED DOCUMENT ---\n"
+
     # Construct full multi-turn contextual prompt
-    full_prompt = f"System: You are Yogesh Chat AI, a helpful AI assistant in a multi-turn chat session with {username}. Answer concisely and accurately using Markdown.\n\n"
+    full_prompt = f"System: You are Yogesh Chat AI, a helpful AI assistant in a multi-turn chat session with {username}. If documents are attached below, answer accurately and thoroughly based on the attached document context. Use Markdown.\n{doc_context}\n"
     
     if history and isinstance(history, list):
         for turn in history[-6:]:
@@ -143,11 +192,14 @@ def main():
         username = input_data.get("username", "User").strip()
         history = input_data.get("history", [])
         selected_model = input_data.get("model", "Gemini 3.6 Flash (High)").strip()
+        files = input_data.get("files", [])
 
-        if not prompt:
-            res = {"success": False, "error": "Empty prompt received"}
+        if not prompt and not files:
+            res = {"success": False, "error": "Empty prompt and no attached files received"}
         else:
-            res = generate_ai_response(prompt, username, history, selected_model)
+            if not prompt:
+                prompt = "Please analyze the attached document(s) and provide a summary of the contents."
+            res = generate_ai_response(prompt, username, history, selected_model, files)
 
     except Exception as e:
         res = {"success": False, "error": str(e)}

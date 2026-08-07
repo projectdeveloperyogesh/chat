@@ -319,6 +319,8 @@ io.on('connection', (socket) => {
 
     session.updatedAt = new Date().toISOString();
 
+    const filesList = (data.files && Array.isArray(data.files)) ? data.files : [];
+
     // 1. User Prompt Message object
     const userMsg = {
       id: 'ai-user-' + Date.now() + '-' + Math.round(Math.random() * 1000),
@@ -330,6 +332,7 @@ io.on('connection', (socket) => {
         id: user.id
       },
       text: text,
+      files: filesList,
       timestamp: new Date().toISOString()
     };
 
@@ -341,9 +344,11 @@ io.on('connection', (socket) => {
     // 2. Broadcast AI typing status
     socket.emit('ai:typing', { isTyping: true, username: 'Yogesh AI' });
 
-    // 3. Spawn Python AI Agent with Stdin JSON payload
+    // 3. Spawn Python AI Agent using .venv Python if present
+    const venvPythonPath = path.join(__dirname, '.venv', 'Scripts', 'python.exe');
+    const pythonCmd = fs.existsSync(venvPythonPath) ? venvPythonPath : 'python';
     const pyScriptPath = path.join(__dirname, 'ai_agent.py');
-    const pyProc = spawn('python', [pyScriptPath], { cwd: __dirname });
+    const pyProc = spawn(pythonCmd, [pyScriptPath], { cwd: __dirname });
     let stdoutData = '';
     let stderrData = '';
 
@@ -399,12 +404,19 @@ io.on('connection', (socket) => {
       socket.emit('ai:session:list:update', getUserSessionList(user.username));
     });
 
+    const fileObjects = filesList.map(f => ({
+      filename: f.filename,
+      originalname: f.originalname,
+      filepath: path.join(UPLOADS_DIR, f.filename)
+    }));
+
     const reqModel = (data.model || 'gemini-3.6-flash').trim();
     const payload = JSON.stringify({
       prompt: text,
       username: user.username,
       history: session.history,
-      model: reqModel
+      model: reqModel,
+      files: fileObjects
     });
     pyProc.stdin.write(payload);
     pyProc.stdin.end();

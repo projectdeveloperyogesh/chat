@@ -1,5 +1,5 @@
 // ==========================================================================
-// NexusChat - Client Application JavaScript
+// Yogesh Chat - Client Application JavaScript
 // ==========================================================================
 
 document.addEventListener('DOMContentLoaded', () => {

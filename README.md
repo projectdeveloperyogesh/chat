@@ -1,4 +1,4 @@
-# NexusChat - Real-Time Chat & File Sharing Application
+# Yogesh Chat - Real-Time Chat & File Sharing Application
 
 A modern, high-performance real-time chat application built with **Node.js**, **Express**, **Socket.IO**, and **Multer**, featuring a dark glassmorphism user interface and file-sharing capabilities.
 

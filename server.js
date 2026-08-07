@@ -89,6 +89,7 @@ app.post('/api/upload', upload.array('files', 5), (req, res) => {
 // Socket.IO State Management
 const activeUsers = new Map(); // socket.id -> { username, color, joinedAt }
 const typingUsers = new Set(); // set of usernames currently typing
+const chatMessages = new Map(); // messageId -> msgObj
 
 // Generate consistent avatar color based on username
 function getUserColor(username) {
@@ -164,6 +165,7 @@ io.on('connection', (socket) => {
       timestamp: new Date().toISOString()
     };
 
+    chatMessages.set(msg.id, msg);
     io.emit('message:new', msg);
   });
 
@@ -186,7 +188,33 @@ io.on('connection', (socket) => {
       timestamp: new Date().toISOString()
     };
 
+    chatMessages.set(fileMsg.id, fileMsg);
     io.emit('file:new', fileMsg);
+  });
+
+  // Handle Message / File Deletion
+  socket.on('message:delete', (data) => {
+    const user = activeUsers.get(socket.id);
+    if (!user || !data || !data.id) return;
+
+    const msgId = data.id;
+    const msg = chatMessages.get(msgId);
+
+    // If message has files, clean up disk storage
+    if (msg && msg.files && Array.isArray(msg.files)) {
+      msg.files.forEach(file => {
+        if (file.filename) {
+          const filePath = path.join(UPLOADS_DIR, file.filename);
+          fs.unlink(filePath, (err) => {
+            if (err) console.error(`Failed to delete file ${filePath}:`, err.message);
+            else console.log(`Deleted file from storage: ${file.filename}`);
+          });
+        }
+      });
+    }
+
+    chatMessages.delete(msgId);
+    io.emit('message:deleted', { id: msgId, deletedBy: user.username });
   });
 
   // Handle Typing Indicators

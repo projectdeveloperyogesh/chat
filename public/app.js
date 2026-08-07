@@ -345,6 +345,7 @@ document.addEventListener('DOMContentLoaded', () => {
     
     const msgWrapper = document.createElement('div');
     msgWrapper.className = `msg-wrapper ${isOutgoing ? 'outgoing' : 'incoming'}`;
+    msgWrapper.setAttribute('data-id', msg.id);
     
     msgWrapper.innerHTML = `
       <div class="msg-avatar" style="background-color: ${msg.sender.color}">
@@ -354,12 +355,22 @@ document.addEventListener('DOMContentLoaded', () => {
         <div class="msg-header">
           <span class="msg-sender">${escapeHTML(msg.sender.username)}</span>
           <span class="msg-time">${formatTime(msg.timestamp)}</span>
+          <button class="msg-delete-btn" data-id="${msg.id}" title="Delete Message">
+            <i class="fa-solid fa-trash-can"></i>
+          </button>
         </div>
         <div class="msg-bubble">
           ${escapeHTML(msg.text)}
         </div>
       </div>
     `;
+
+    // Bind delete button
+    msgWrapper.querySelector('.msg-delete-btn').addEventListener('click', () => {
+      if (confirm('Delete this message for everyone?')) {
+        socket.emit('message:delete', { id: msg.id });
+      }
+    });
 
     messageContainer.appendChild(msgWrapper);
     scrollToBottom();
@@ -371,6 +382,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const msgWrapper = document.createElement('div');
     msgWrapper.className = `msg-wrapper ${isOutgoing ? 'outgoing' : 'incoming'}`;
+    msgWrapper.setAttribute('data-id', msg.id);
 
     let filesHTML = '';
     msg.files.forEach(file => {
@@ -423,6 +435,9 @@ document.addEventListener('DOMContentLoaded', () => {
         <div class="msg-header">
           <span class="msg-sender">${escapeHTML(msg.sender.username)}</span>
           <span class="msg-time">${formatTime(msg.timestamp)}</span>
+          <button class="msg-delete-btn" data-id="${msg.id}" title="Delete Shared File">
+            <i class="fa-solid fa-trash-can"></i>
+          </button>
         </div>
         ${captionHTML}
         <div class="files-grid">
@@ -430,6 +445,13 @@ document.addEventListener('DOMContentLoaded', () => {
         </div>
       </div>
     `;
+
+    // Bind delete button
+    msgWrapper.querySelector('.msg-delete-btn').addEventListener('click', () => {
+      if (confirm('Delete this file and message for everyone?')) {
+        socket.emit('message:delete', { id: msg.id });
+      }
+    });
 
     messageContainer.appendChild(msgWrapper);
 
@@ -445,6 +467,17 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     scrollToBottom();
+  });
+
+  // Realtime Message Deletion Listener
+  socket.on('message:deleted', ({ id }) => {
+    const elem = document.querySelector(`.msg-wrapper[data-id="${id}"]`);
+    if (elem) {
+      elem.style.transition = 'all 0.3s ease';
+      elem.style.opacity = '0';
+      elem.style.transform = 'scale(0.9)';
+      setTimeout(() => elem.remove(), 300);
+    }
   });
 
   // Typing Update

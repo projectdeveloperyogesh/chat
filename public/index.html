@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>NexusChat - Realtime Chat & File Sharing</title>
+  <!-- Google Fonts: Inter & Outfit -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@500;600;700&display=swap" rel="stylesheet">
+  <!-- FontAwesome Icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <!-- Custom Styles -->
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <!-- Join Modal -->
+  <div id="join-modal" class="modal-overlay">
+    <div class="modal-card">
+      <div class="modal-brand">
+        <div class="brand-logo">
+          <i class="fa-solid fa-comments"></i>
+        </div>
+        <h2>Welcome to NexusChat</h2>
+        <p>Real-time conversations & high-speed file sharing</p>
+      </div>
+      <form id="join-form">
+        <div class="input-group">
+          <label for="username-input">Choose your handle</label>
+          <div class="input-wrapper">
+            <i class="fa-solid fa-user input-icon"></i>
+            <input type="text" id="username-input" placeholder="e.g. Alex, CyberCoder..." autocomplete="off" required maxlength="25">
+          </div>
+          <span id="join-error" class="error-msg"></span>
+        </div>
+        <button type="submit" id="join-btn" class="primary-btn">
+          <span>Join Chat</span>
+          <i class="fa-solid fa-arrow-right"></i>
+        </button>
+      </form>
+    </div>
+  </div>
+
+  <!-- Main Application Layout -->
+  <div id="app-container" class="app-layout hidden">
+    
+    <!-- Sidebar -->
+    <aside id="sidebar" class="sidebar">
+      <div class="sidebar-header">
+        <div class="brand">
+          <div class="brand-icon"><i class="fa-solid fa-paper-plane"></i></div>
+          <div class="brand-text">
+            <h1>NexusChat</h1>
+            <span class="status-indicator"><span class="dot"></span> Online</span>
+          </div>
+        </div>
+        <button id="close-sidebar-btn" class="icon-btn mobile-only" title="Close Sidebar">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+      </div>
+
+      <!-- User Info Box -->
+      <div class="current-user-card">
+        <div id="my-avatar" class="avatar-circle">?</div>
+        <div class="user-details">
+          <span id="my-username" class="my-username">User</span>
+          <span class="user-role">Connected</span>
+        </div>
+      </div>
+
+      <!-- Online Users Section -->
+      <div class="sidebar-section">
+        <div class="section-title">
+          <span>Active Users</span>
+          <span id="user-count-badge" class="badge">0</span>
+        </div>
+        <ul id="user-list" class="user-list">
+          <!-- Dynamic user items -->
+        </ul>
+      </div>
+
+      <!-- Quick Upload Drop Zone -->
+      <div class="sidebar-section upload-section">
+        <div class="section-title">
+          <span>Quick Share</span>
+        </div>
+        <div id="drop-zone" class="drop-zone">
+          <i class="fa-solid fa-cloud-arrow-up drop-icon"></i>
+          <p class="drop-text">Drag & drop files here</p>
+          <span class="drop-subtext">or click to browse</span>
+          <input type="file" id="sidebar-file-input" multiple style="display: none;">
+        </div>
+      </div>
+
+    </aside>
+
+    <!-- Sidebar Overlay for Mobile -->
+    <div id="sidebar-overlay" class="sidebar-overlay"></div>
+
+    <!-- Chat Area -->
+    <main class="chat-main">
+      <!-- Chat Header -->
+      <header class="chat-header">
+        <div class="header-left">
+          <button id="open-sidebar-btn" class="icon-btn mobile-only" title="Open Users">
+            <i class="fa-solid fa-bars"></i>
+          </button>
+          <div class="channel-info">
+            <h2><i class="fa-solid fa-hashtag"></i> global-lounge</h2>
+            <p>Share messages, images, videos & documents instantly</p>
+          </div>
+        </div>
+        <div class="header-right">
+          <div class="user-avatars-stack" id="header-avatars">
+            <!-- Avatars stack -->
+          </div>
+        </div>
+      </header>
+
+      <!-- Message History Container -->
+      <div id="message-container" class="message-container">
+        <!-- Messages & files dynamically inserted here -->
+        <div class="chat-welcome-banner">
+          <div class="welcome-icon"><i class="fa-solid fa-shield-halved"></i></div>
+          <h3>Welcome to the Global Lounge</h3>
+          <p>This is the start of real-time encrypted connection. Share text, photos, audio, videos, or raw documents effortlessly.</p>
+        </div>
+      </div>
+
+      <!-- Typing Indicator -->
+      <div id="typing-indicator" class="typing-indicator hidden">
+        <span class="typing-dots">
+          <span></span><span></span><span></span>
+        </span>
+        <span id="typing-text">Someone is typing...</span>
+      </div>
+
+      <!-- Pending Attachments Bar -->
+      <div id="pending-attachments" class="pending-attachments hidden">
+        <div class="attachments-header">
+          <span>Attached Files (<span id="attached-count">0</span>)</span>
+          <button id="clear-attachments-btn" class="text-btn">Clear All</button>
+        </div>
+        <div id="attachment-previews" class="attachment-previews">
+          <!-- Attachment pills dynamically added -->
+        </div>
+      </div>
+
+      <!-- Message Input Bar -->
+      <footer class="chat-footer">
+        <form id="chat-form" class="chat-input-form">
+          <button type="button" id="attach-btn" class="action-btn" title="Attach Files">
+            <i class="fa-solid fa-paperclip"></i>
+            <input type="file" id="chat-file-input" multiple style="display: none;">
+          </button>
+
+          <div class="input-container">
+            <input type="text" id="chat-message-input" placeholder="Type a message or drag files into chat..." autocomplete="off">
+          </div>
+
+          <button type="submit" id="send-btn" class="send-btn" title="Send Message">
+            <i class="fa-solid fa-paper-plane"></i>
+          </button>
+        </form>
+      </footer>
+    </main>
+  </div>
+
+  <!-- Image Lightbox Modal -->
+  <div id="lightbox-modal" class="modal-overlay hidden">
+    <div class="lightbox-content">
+      <button id="close-lightbox-btn" class="icon-btn lightbox-close"><i class="fa-solid fa-xmark"></i></button>
+      <img id="lightbox-img" src="" alt="Full view preview">
+      <div class="lightbox-caption">
+        <span id="lightbox-filename">Image</span>
+        <a id="lightbox-download" href="#" download class="primary-btn sm"><i class="fa-solid fa-download"></i> Download</a>
+      </div>
+    </div>
+  </div>
+
+  <!-- Socket.io Client Script -->
+  <script src="/socket.io/socket.io.js"></script>
+  <!-- Application Client Script -->
+  <script src="app.js"></script>
+</body>
+</html>

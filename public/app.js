@@ -55,6 +55,11 @@ document.addEventListener('DOMContentLoaded', () => {
     openApiDocsBtn.addEventListener('click', () => {
       apiDocsModal.classList.remove('hidden');
     });
+    apiDocsModal.addEventListener('click', (e) => {
+      if (e.target === apiDocsModal) {
+        apiDocsModal.classList.add('hidden');
+      }
+    });
   }
 
   if (closeApiDocsBtn && apiDocsModal) {
@@ -454,7 +459,6 @@ document.addEventListener('DOMContentLoaded', () => {
       }
       socket.emit('ai:send', { text, sessionId: aiSessionId, model: selectedModel, files: uploadedFiles });
       chatMessageInput.value = '';
-    }
     } else {
       // Global Lounge Channel Submission
       if (hasFiles) {

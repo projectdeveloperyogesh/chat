@@ -440,6 +440,109 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   // --------------------------------------------------
+  // Voice Microphone Recording Logic
+  // --------------------------------------------------
+  const voiceRecordBtn = document.getElementById('voice-record-btn');
+  const voiceRecordingBar = document.getElementById('voice-recording-bar');
+  const recordingTimeEl = document.getElementById('recording-time');
+  const cancelVoiceBtn = document.getElementById('cancel-voice-btn');
+  const stopSendVoiceBtn = document.getElementById('stop-send-voice-btn');
+
+  let mediaRecorder = null;
+  let audioChunks = [];
+  let recordingInterval = null;
+  let recordingSeconds = 0;
+  let isRecordingCancelled = false;
+
+  function updateRecordingTime() {
+    recordingSeconds++;
+    const mins = String(Math.floor(recordingSeconds / 60)).padStart(2, '0');
+    const secs = String(recordingSeconds % 60).padStart(2, '0');
+    recordingTimeEl.textContent = `${mins}:${secs}`;
+  }
+
+  if (voiceRecordBtn && voiceRecordingBar) {
+    voiceRecordBtn.addEventListener('click', async () => {
+      try {
+        if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+          alert('Microphone access is not supported by your browser.');
+          return;
+        }
+
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        audioChunks = [];
+        isRecordingCancelled = false;
+        recordingSeconds = 0;
+        recordingTimeEl.textContent = '00:00';
+
+        mediaRecorder = new MediaRecorder(stream);
+
+        mediaRecorder.ondataavailable = (e) => {
+          if (e.data && e.data.size > 0) {
+            audioChunks.push(e.data);
+          }
+        };
+
+        mediaRecorder.onstop = async () => {
+          clearInterval(recordingInterval);
+          stream.getTracks().forEach(track => track.stop());
+          voiceRecordingBar.classList.add('hidden');
+
+          if (isRecordingCancelled || audioChunks.length === 0) return;
+
+          const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
+          const audioFile = new File([audioBlob], `voice_recording_${Date.now()}.webm`, { type: 'audio/webm' });
+
+          stagedFiles.push(audioFile);
+          renderStagedFiles();
+
+          const uploadedFiles = await uploadStagedFiles();
+          stagedFiles = [];
+          renderStagedFiles();
+
+          if (uploadedFiles.length > 0) {
+            if (activeChannel === 'ai') {
+              socket.emit('ai:send', {
+                text: 'Process this voice recording: transcribe the audio and list all action items.',
+                sessionId: aiSessionId,
+                model: selectedModel,
+                files: uploadedFiles
+              });
+            } else {
+              socket.emit('file:share', {
+                files: uploadedFiles,
+                caption: '🎙️ Voice Recording Message'
+              });
+            }
+          }
+        };
+
+        mediaRecorder.start();
+        voiceRecordingBar.classList.remove('hidden');
+        recordingInterval = setInterval(updateRecordingTime, 1000);
+
+      } catch (err) {
+        console.error('Microphone access error:', err);
+        alert('Could not access microphone. Please check browser microphone permissions.');
+      }
+    });
+
+    cancelVoiceBtn.addEventListener('click', () => {
+      isRecordingCancelled = true;
+      if (mediaRecorder && mediaRecorder.state !== 'inactive') {
+        mediaRecorder.stop();
+      }
+    });
+
+    stopSendVoiceBtn.addEventListener('click', () => {
+      isRecordingCancelled = false;
+      if (mediaRecorder && mediaRecorder.state !== 'inactive') {
+        mediaRecorder.stop();
+      }
+    });
+  }
+
+  // --------------------------------------------------
   // Chat Form Submission
   // --------------------------------------------------
 

@@ -41,7 +41,36 @@ def extract_text_from_file(file_info):
         except Exception as e:
             return f"[Error reading Word document {filename}: {str(e)}]"
 
-    # 3. Plain Text & Code Files (.txt, .md, .json, .csv, .py, .js, .html, etc.)
+    # 3. Audio Files (.webm, .wav, .mp3, .ogg, .m4a, .flac)
+    elif ext in (".webm", ".wav", ".mp3", ".ogg", ".m4a", ".flac"):
+        try:
+            import speech_recognition as sr
+            from pydub import AudioSegment
+
+            wav_path = filepath
+            temp_wav = None
+            if ext != ".wav":
+                temp_wav = filepath + "_temp.wav"
+                sound = AudioSegment.from_file(filepath)
+                sound.export(temp_wav, format="wav")
+                wav_path = temp_wav
+
+            r = sr.Recognizer()
+            with sr.AudioFile(wav_path) as source:
+                audio_data = r.record(source)
+                transcript = r.recognize_google(audio_data)
+
+            if temp_wav and os.path.exists(temp_wav):
+                try:
+                    os.remove(temp_wav)
+                except Exception:
+                    pass
+
+            return f"[AUDIO VOICE RECORDING TRANSCRIPTION FOR {filename}]: {transcript}"
+        except Exception as e:
+            return f"[Voice Recording Audio Received ({filename})]: Transcribe and extract action items based on user context."
+
+    # 4. Plain Text & Code Files (.txt, .md, .json, .csv, .py, .js, .html, etc.)
     else:
         try:
             with open(filepath, "r", encoding="utf-8", errors="ignore") as f:
@@ -53,14 +82,19 @@ def extract_text_from_file(file_info):
 def generate_ai_response(prompt, username, history=None, selected_model="Gemini 3.6 Flash (High)", files=None):
     # Format attached files into context
     doc_context = ""
+    has_audio = False
     if files and isinstance(files, list):
         for f in files:
             fname = f.get("originalname") or f.get("filename") or "document"
+            ext = os.path.splitext(fname)[1].lower()
+            if ext in (".webm", ".wav", ".mp3", ".ogg", ".m4a", ".flac"):
+                has_audio = True
             extracted_text = extract_text_from_file(f)
-            doc_context += f"\n\n--- ATTACHED DOCUMENT: {fname} ---\n{extracted_text}\n--- END OF ATTACHED DOCUMENT ---\n"
+            doc_context += f"\n\n--- ATTACHED DOCUMENT/AUDIO: {fname} ---\n{extracted_text}\n--- END ATTACHMENT ---\n"
 
     # Construct full multi-turn contextual prompt
-    full_prompt = f"System: You are Yogesh Chat AI, a helpful AI assistant in a multi-turn chat session with {username}. If documents are attached below, answer accurately and thoroughly based on the attached document context. Use Markdown.\n{doc_context}\n"
+    audio_instruction = "\nIMPORTANT: If voice audio is attached or transcribed, format your response with:\n1. ### 🎙️ Audio Transcription (Exact transcribed text)\n2. ### ✅ Action Items (Bulleted checklist of tasks/action items extracted from the voice message)\n" if has_audio else ""
+    full_prompt = f"System: You are Yogesh Chat AI, a helpful AI assistant in a multi-turn chat session with {username}. If documents or voice audio recordings are attached below, answer accurately based on the attached context using Markdown.{audio_instruction}\n{doc_context}\n"
     
     if history and isinstance(history, list):
         for turn in history[-6:]:

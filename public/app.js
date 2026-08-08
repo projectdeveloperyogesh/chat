@@ -857,6 +857,17 @@ document.addEventListener('DOMContentLoaded', () => {
               </div>
             </div>
           `;
+        } else if (fileCategory === 'audio' || (f.originalname && (f.originalname.endsWith('.wav') || f.originalname.endsWith('.webm') || f.originalname.endsWith('.mp3') || f.originalname.endsWith('.ogg')))) {
+          return `
+            <div class="file-card audio-card" style="padding: 10px; background: rgba(0,0,0,0.3); border-radius: 8px; margin-top: 6px;">
+              <div class="file-meta" style="margin-bottom: 6px; font-size: 12px; color: var(--text-muted); display: flex; align-items: center; gap: 6px;">
+                <i class="fa-solid fa-microphone" style="color: #ef4444;"></i>
+                <span>${escapeHTML(f.originalname)}</span>
+                <span style="opacity: 0.7;">(${formatBytes(f.size)})</span>
+              </div>
+              <audio controls src="${f.url}" style="width: 100%; height: 36px; border-radius: 6px; outline: none;"></audio>
+            </div>
+          `;
         }
         return `
           <div class="file-card generic-card">

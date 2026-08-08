@@ -579,7 +579,7 @@ io.on('connection', (socket) => {
 
     const fileObjects = filesList.map(f => ({
       filename: f.filename,
-      originalname: f.originalname,
+      originalname: f.originalname || f.originalName || f.filename,
       filepath: path.join(UPLOADS_DIR, f.filename)
     }));
 

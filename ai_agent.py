@@ -16,6 +16,8 @@ def extract_text_from_file(file_info):
         return f"[File {filename} not found]"
 
     ext = os.path.splitext(filepath)[1].lower()
+    if not ext or ext not in (".pdf", ".docx", ".doc", ".webm", ".wav", ".mp3", ".ogg", ".m4a", ".flac"):
+        ext = os.path.splitext(filename)[1].lower()
 
     # 1. PDF Files
     if ext == ".pdf":
@@ -86,7 +88,10 @@ def generate_ai_response(prompt, username, history=None, selected_model="Gemini 
     if files and isinstance(files, list):
         for f in files:
             fname = f.get("originalname") or f.get("filename") or "document"
-            ext = os.path.splitext(fname)[1].lower()
+            fpath = f.get("filepath", "")
+            ext = os.path.splitext(fpath)[1].lower()
+            if not ext or ext not in (".pdf", ".docx", ".doc", ".webm", ".wav", ".mp3", ".ogg", ".m4a", ".flac"):
+                ext = os.path.splitext(fname)[1].lower()
             if ext in (".webm", ".wav", ".mp3", ".ogg", ".m4a", ".flac"):
                 has_audio = True
             extracted_text = extract_text_from_file(f)

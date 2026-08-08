@@ -71,6 +71,7 @@ app.post('/api/upload', upload.array('files', 5), (req, res) => {
       return {
         id: file.filename,
         originalName: file.originalname,
+        originalname: file.originalname,
         filename: file.filename,
         url: `/uploads/${file.filename}`,
         size: file.size,

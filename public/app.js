@@ -123,7 +123,8 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   function escapeHTML(str) {
-    return str.replace(/[&<>'"]/g, 
+    if (str === null || str === undefined) return '';
+    return String(str).replace(/[&<>'"]/g, 
       tag => ({
         '&': '&amp;',
         '<': '&lt;',
@@ -794,26 +795,27 @@ document.addEventListener('DOMContentLoaded', () => {
     let filesHTML = '';
     if (msg.files && Array.isArray(msg.files) && msg.files.length > 0) {
       const filesGrid = msg.files.map(f => {
+        const fname = f.originalname || f.originalName || f.filename || 'file';
         const fileCategory = f.category || 'document';
         const iconClass = getCategoryIcon(fileCategory);
         if (fileCategory === 'image') {
           return `
             <div class="file-card image-card">
               <div class="image-preview-wrapper">
-                <img src="${f.url}" alt="${escapeHTML(f.originalname)}" class="preview-img" data-url="${f.url}" data-name="${escapeHTML(f.originalname)}">
+                <img src="${f.url}" alt="${escapeHTML(fname)}" class="preview-img" data-url="${f.url}" data-name="${escapeHTML(fname)}">
               </div>
               <div class="file-meta">
-                <span class="file-name">${escapeHTML(f.originalname)}</span>
+                <span class="file-name">${escapeHTML(fname)}</span>
                 <span class="file-size">${formatBytes(f.size)}</span>
               </div>
             </div>
           `;
-        } else if (fileCategory === 'audio' || (f.originalname && (f.originalname.endsWith('.wav') || f.originalname.endsWith('.webm') || f.originalname.endsWith('.mp3') || f.originalname.endsWith('.ogg')))) {
+        } else if (fileCategory === 'audio' || (fname && (fname.endsWith('.wav') || fname.endsWith('.webm') || fname.endsWith('.mp3') || fname.endsWith('.ogg') || fname.endsWith('.m4a')))) {
           return `
             <div class="file-card audio-card" style="padding: 10px; background: rgba(0,0,0,0.3); border-radius: 8px; margin-top: 6px;">
               <div class="file-meta" style="margin-bottom: 6px; font-size: 12px; color: var(--text-muted); display: flex; align-items: center; gap: 6px;">
                 <i class="fa-solid fa-microphone" style="color: #ef4444;"></i>
-                <span>${escapeHTML(f.originalname)}</span>
+                <span>${escapeHTML(fname)}</span>
                 <span style="opacity: 0.7;">(${formatBytes(f.size)})</span>
               </div>
               <audio controls src="${f.url}" style="width: 100%; height: 36px; border-radius: 6px; outline: none;"></audio>
@@ -826,10 +828,10 @@ document.addEventListener('DOMContentLoaded', () => {
               <i class="fa-solid ${iconClass}"></i>
             </div>
             <div class="file-info-box">
-              <span class="file-name">${escapeHTML(f.originalname)}</span>
+              <span class="file-name">${escapeHTML(fname)}</span>
               <span class="file-size">${formatBytes(f.size)}</span>
             </div>
-            <a href="${f.url}" download="${escapeHTML(f.originalname)}" class="file-download-btn" title="Download File">
+            <a href="${f.url}" download="${escapeHTML(fname)}" class="file-download-btn" title="Download File">
               <i class="fa-solid fa-download"></i>
             </a>
           </div>

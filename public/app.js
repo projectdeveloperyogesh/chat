@@ -440,7 +440,7 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   // --------------------------------------------------
-  // Voice Microphone Recording Logic (WAV PCM Audio)
+  // Voice Microphone Recording Logic (MediaRecorder API)
   // --------------------------------------------------
   const voiceRecordBtn = document.getElementById('voice-record-btn');
   const voiceRecordingBar = document.getElementById('voice-recording-bar');
@@ -448,102 +448,17 @@ document.addEventListener('DOMContentLoaded', () => {
   const cancelVoiceBtn = document.getElementById('cancel-voice-btn');
   const stopSendVoiceBtn = document.getElementById('stop-send-voice-btn');
 
-  let audioContext = null;
-  let audioStream = null;
-  let scriptProcessor = null;
-  let pcmBuffers = [];
+  let mediaRecorder = null;
+  let audioChunks = [];
   let recordingInterval = null;
   let recordingSeconds = 0;
   let isRecordingCancelled = false;
-  let isRecordingActive = false;
 
   function updateRecordingTime() {
     recordingSeconds++;
     const mins = String(Math.floor(recordingSeconds / 60)).padStart(2, '0');
     const secs = String(recordingSeconds % 60).padStart(2, '0');
     recordingTimeEl.textContent = `${mins}:${secs}`;
-  }
-
-  function writeWavString(view, offset, string) {
-    for (let i = 0; i < string.length; i++) {
-      view.setUint8(offset + i, string.charCodeAt(i));
-    }
-  }
-
-  function encodeWAV(samples, sampleRate) {
-    const buffer = new ArrayBuffer(44 + samples.length * 2);
-    const view = new DataView(buffer);
-
-    writeWavString(view, 0, 'RIFF');
-    view.setUint32(4, 36 + samples.length * 2, true);
-    writeWavString(view, 8, 'WAVE');
-    writeWavString(view, 12, 'fmt ');
-    view.setUint32(16, 16, true);
-    view.setUint16(20, 1, true); // PCM Mono
-    view.setUint16(22, 1, true);
-    view.setUint32(24, sampleRate, true);
-    view.setUint32(28, sampleRate * 2, true);
-    view.setUint16(32, 2, true);
-    view.setUint16(34, 16, true);
-    writeWavString(view, 36, 'data');
-    view.setUint32(40, samples.length * 2, true);
-
-    let offset = 44;
-    for (let i = 0; i < samples.length; i++) {
-      let s = Math.max(-1, Math.min(1, samples[i]));
-      view.setInt16(offset, s < 0 ? s * 0x8000 : s * 0x7FFF, true);
-      offset += 2;
-    }
-
-    return new Blob([view], { type: 'audio/wav' });
-  }
-
-  async function stopVoiceRecording() {
-    if (!isRecordingActive) return;
-    isRecordingActive = false;
-
-    clearInterval(recordingInterval);
-    if (scriptProcessor) scriptProcessor.disconnect();
-    const recordedSampleRate = audioContext ? audioContext.sampleRate : 44100;
-    if (audioContext) audioContext.close();
-    if (audioStream) audioStream.getTracks().forEach(track => track.stop());
-    voiceRecordingBar.classList.add('hidden');
-
-    if (isRecordingCancelled || pcmBuffers.length === 0) return;
-
-    let totalSamples = pcmBuffers.reduce((acc, buf) => acc + buf.length, 0);
-    let resultPCM = new Float32Array(totalSamples);
-    let offset = 0;
-    for (let buf of pcmBuffers) {
-      resultPCM.set(buf, offset);
-      offset += buf.length;
-    }
-
-    const audioBlob = encodeWAV(resultPCM, recordedSampleRate);
-    const audioFile = new File([audioBlob], `voice_recording_${Date.now()}.wav`, { type: 'audio/wav' });
-
-    stagedFiles.push(audioFile);
-    renderStagedFiles();
-
-    const uploadedFiles = await uploadStagedFiles();
-    stagedFiles = [];
-    renderStagedFiles();
-
-    if (uploadedFiles.length > 0) {
-      if (activeChannel === 'ai') {
-        socket.emit('ai:send', {
-          text: 'Process this voice recording: transcribe the audio and list all action items.',
-          sessionId: aiSessionId,
-          model: selectedModel,
-          files: uploadedFiles
-        });
-      } else {
-        socket.emit('file:share', {
-          files: uploadedFiles,
-          caption: '🎙️ Voice Recording Message'
-        });
-      }
-    }
   }
 
   if (voiceRecordBtn && voiceRecordingBar) {
@@ -554,28 +469,60 @@ document.addEventListener('DOMContentLoaded', () => {
           return;
         }
 
-        audioStream = await navigator.mediaDevices.getUserMedia({ audio: true });
-        audioContext = new (window.AudioContext || window.webkitAudioContext)();
-        const source = audioContext.createMediaStreamSource(audioStream);
-
-        scriptProcessor = audioContext.createScriptProcessor(4096, 1, 1);
-        pcmBuffers = [];
-
-        scriptProcessor.onaudioprocess = (e) => {
-          if (isRecordingActive) {
-            const inputBuffer = e.inputBuffer.getChannelData(0);
-            pcmBuffers.push(new Float32Array(inputBuffer));
-          }
-        };
-
-        source.connect(scriptProcessor);
-        scriptProcessor.connect(audioContext.destination);
-
-        isRecordingActive = true;
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        audioChunks = [];
         isRecordingCancelled = false;
         recordingSeconds = 0;
         recordingTimeEl.textContent = '00:00';
 
+        const mimeType = (typeof MediaRecorder !== 'undefined' && MediaRecorder.isTypeSupported('audio/webm')) ? 'audio/webm' :
+                         (typeof MediaRecorder !== 'undefined' && MediaRecorder.isTypeSupported('audio/mp4')) ? 'audio/mp4' : 'audio/ogg';
+
+        mediaRecorder = new MediaRecorder(stream, mimeType ? { mimeType } : undefined);
+
+        mediaRecorder.ondataavailable = (e) => {
+          if (e.data && e.data.size > 0) {
+            audioChunks.push(e.data);
+          }
+        };
+
+        mediaRecorder.onstop = async () => {
+          clearInterval(recordingInterval);
+          stream.getTracks().forEach(track => track.stop());
+          voiceRecordingBar.classList.add('hidden');
+
+          if (isRecordingCancelled || audioChunks.length === 0) return;
+
+          const activeMime = mediaRecorder.mimeType || 'audio/webm';
+          const fileExt = activeMime.includes('webm') ? 'webm' : activeMime.includes('mp4') ? 'm4a' : 'ogg';
+          const audioBlob = new Blob(audioChunks, { type: activeMime });
+          const audioFile = new File([audioBlob], `voice_recording_${Date.now()}.${fileExt}`, { type: activeMime });
+
+          stagedFiles.push(audioFile);
+          renderStagedFiles();
+
+          const uploadedFiles = await uploadStagedFiles();
+          stagedFiles = [];
+          renderStagedFiles();
+
+          if (uploadedFiles.length > 0) {
+            if (activeChannel === 'ai') {
+              socket.emit('ai:send', {
+                text: 'Process this voice recording: transcribe the audio and list all action items.',
+                sessionId: aiSessionId,
+                model: selectedModel,
+                files: uploadedFiles
+              });
+            } else {
+              socket.emit('file:share', {
+                files: uploadedFiles,
+                caption: '🎙️ Voice Recording Message'
+              });
+            }
+          }
+        };
+
+        mediaRecorder.start();
         voiceRecordingBar.classList.remove('hidden');
         recordingInterval = setInterval(updateRecordingTime, 1000);
 
@@ -587,12 +534,16 @@ document.addEventListener('DOMContentLoaded', () => {
 
     cancelVoiceBtn.addEventListener('click', () => {
       isRecordingCancelled = true;
-      stopVoiceRecording();
+      if (mediaRecorder && mediaRecorder.state !== 'inactive') {
+        mediaRecorder.stop();
+      }
     });
 
     stopSendVoiceBtn.addEventListener('click', () => {
       isRecordingCancelled = false;
-      stopVoiceRecording();
+      if (mediaRecorder && mediaRecorder.state !== 'inactive') {
+        mediaRecorder.stop();
+      }
     });
   }
 

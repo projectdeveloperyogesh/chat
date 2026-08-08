@@ -48,6 +48,9 @@ def extract_text_from_file(file_info):
         try:
             import speech_recognition as sr
             from pydub import AudioSegment
+            import imageio_ffmpeg
+
+            AudioSegment.converter = imageio_ffmpeg.get_ffmpeg_exe()
 
             wav_path = filepath
             temp_wav = None

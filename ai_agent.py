@@ -132,6 +132,31 @@ def generate_ai_response(prompt, username, history=None, selected_model="Gemini 
         (selected_model, "high")
     )
 
+    # 0. Relay Engine: Forward request to Local PC running Antigravity CLI via ngrok/Tunnel
+    relay_url = os.environ.get("LOCAL_AGY_RELAY_URL")
+    if relay_url:
+        try:
+            import urllib.request
+            import json
+            req_data = json.dumps({
+                "prompt": prompt,
+                "username": username,
+                "model": selected_model,
+                "files": files
+            }).encode('utf-8')
+            req = urllib.request.Request(relay_url, data=req_data, headers={'Content-Type': 'application/json'})
+            with urllib.request.urlopen(req, timeout=90) as resp:
+                if resp.status == 200:
+                    resp_json = json.loads(resp.read().decode('utf-8'))
+                    if resp_json.get("reply"):
+                        return {
+                            "success": True,
+                            "reply": resp_json.get("reply"),
+                            "model": resp_json.get("model", f"Local AGY Relay ({target_model})")
+                        }
+        except Exception as e:
+            pass
+
     # 1. Primary Engine: Route prompt through Antigravity CLI with model
     try:
         cmd = ["agy", "--model", target_model, "--print", full_prompt]

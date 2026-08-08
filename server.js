@@ -32,6 +32,63 @@ app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
 app.use('/uploads', express.static(UPLOADS_DIR));
 
+// Real-Time API Request Logger Interceptor
+app.use('/api/', (req, res, next) => {
+  const reqId = 'req-' + Date.now() + '-' + Math.round(Math.random() * 10000);
+  const startTime = Date.now();
+  const clientIp = req.headers['x-forwarded-for'] || req.socket.remoteAddress || '127.0.0.1';
+
+  let reqBodyStr = '';
+  if (req.body && Object.keys(req.body).length > 0) {
+    try {
+      reqBodyStr = JSON.stringify(req.body, null, 2);
+    } catch (e) {
+      reqBodyStr = String(req.body);
+    }
+  }
+
+  const logObj = {
+    id: reqId,
+    method: req.method,
+    path: req.originalUrl || req.url,
+    status: 'running',
+    statusCode: null,
+    durationMs: null,
+    clientIp: clientIp,
+    requestBody: reqBodyStr,
+    responseBody: null,
+    error: null,
+    timestamp: new Date().toISOString()
+  };
+
+  db.saveApiLog(logObj);
+  io.emit('api:log:new', logObj);
+
+  const originalJson = res.json;
+  res.json = function (body) {
+    const durationMs = Date.now() - startTime;
+    let resBodyStr = '';
+    try {
+      resBodyStr = JSON.stringify(body, null, 2);
+    } catch (e) {
+      resBodyStr = String(body);
+    }
+
+    logObj.status = String(res.statusCode || 200);
+    logObj.statusCode = res.statusCode || 200;
+    logObj.durationMs = durationMs;
+    logObj.responseBody = resBodyStr;
+    logObj.error = (body && body.error) ? body.error : null;
+
+    db.saveApiLog(logObj);
+    io.emit('api:log:update', logObj);
+
+    return originalJson.call(this, body);
+  };
+
+  next();
+});
+
 // Configure Multer for Storage
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
@@ -459,6 +516,20 @@ app.delete('/api/v1/chats/all', (req, res) => {
 
   io.emit('chat:cleared:all');
   res.json({ success: true, message: 'All chats, sessions, and files deleted successfully' });
+});
+
+// GET /api/v1/logs - Retrieve API Call Logs & Live Metrics
+app.get('/api/v1/logs', (req, res) => {
+  const limit = parseInt(req.query.limit || 200, 10);
+  const logs = db.getApiLogs(limit);
+  res.json({ success: true, count: logs.length, logs });
+});
+
+// DELETE /api/v1/logs - Clear API Call Logs
+app.delete('/api/v1/logs', (req, res) => {
+  db.clearApiLogs();
+  io.emit('api:logs:cleared');
+  res.json({ success: true, message: 'API request logs cleared successfully' });
 });
 
 // Socket.IO State Management

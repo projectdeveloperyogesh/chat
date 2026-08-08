@@ -39,6 +39,20 @@ function initDatabase() {
       role TEXT NOT NULL,
       text TEXT NOT NULL
     );
+
+    CREATE TABLE IF NOT EXISTS api_logs (
+      id TEXT PRIMARY KEY,
+      method TEXT NOT NULL,
+      path TEXT NOT NULL,
+      status TEXT NOT NULL,
+      status_code INTEGER,
+      duration_ms INTEGER,
+      client_ip TEXT,
+      request_body TEXT,
+      response_body TEXT,
+      error TEXT,
+      timestamp TEXT NOT NULL
+    );
   `);
 }
 
@@ -236,8 +250,60 @@ function deleteAllData() {
   db.prepare('DELETE FROM messages').run();
   db.prepare('DELETE FROM ai_history').run();
   db.prepare('DELETE FROM ai_sessions').run();
+  db.prepare('DELETE FROM api_logs').run();
 
   return filesToUnlink;
+}
+
+// --------------------------------------------------
+// API Request Logging Database Methods
+// --------------------------------------------------
+
+function saveApiLog(log) {
+  const stmt = db.prepare(`
+    INSERT INTO api_logs (id, method, path, status, status_code, duration_ms, client_ip, request_body, response_body, error, timestamp)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    ON CONFLICT(id) DO UPDATE SET
+      status = excluded.status,
+      status_code = excluded.status_code,
+      duration_ms = excluded.duration_ms,
+      response_body = excluded.response_body,
+      error = excluded.error
+  `);
+  stmt.run(
+    log.id,
+    log.method,
+    log.path,
+    log.status,
+    log.statusCode || null,
+    log.durationMs || null,
+    log.clientIp || null,
+    log.requestBody || null,
+    log.responseBody || null,
+    log.error || null,
+    log.timestamp || new Date().toISOString()
+  );
+}
+
+function getApiLogs(limit = 200) {
+  const rows = db.prepare('SELECT * FROM api_logs ORDER BY timestamp DESC LIMIT ?').all(limit);
+  return rows.map(r => ({
+    id: r.id,
+    method: r.method,
+    path: r.path,
+    status: r.status,
+    statusCode: r.status_code,
+    durationMs: r.duration_ms,
+    clientIp: r.client_ip,
+    requestBody: r.request_body,
+    responseBody: r.response_body,
+    error: r.error,
+    timestamp: r.timestamp
+  }));
+}
+
+function clearApiLogs() {
+  db.prepare('DELETE FROM api_logs').run();
 }
 
 // Initialize tables on load
@@ -254,5 +320,8 @@ module.exports = {
   getGlobalMessages,
   deleteMessage,
   deleteAllGlobalMessages,
-  deleteAllData
+  deleteAllData,
+  saveApiLog,
+  getApiLogs,
+  clearApiLogs
 };

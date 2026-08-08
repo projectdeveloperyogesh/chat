@@ -103,9 +103,9 @@
 
       <!-- Sidebar Footer API Docs -->
       <div class="sidebar-section api-docs-section">
-        <button id="open-api-docs-btn" class="icon-text-btn full-width" title="View REST API Documentation">
-          <i class="fa-solid fa-code"></i> REST API Docs & Examples
-        </button>
+        <a href="/api-docs.html" target="_blank" class="icon-text-btn full-width" title="Open Full REST API Documentation Page">
+          <i class="fa-solid fa-book"></i> REST API Docs Page <i class="fa-solid fa-arrow-up-right-from-square" style="font-size: 10px; margin-left: auto;"></i>
+        </a>
       </div>
 
     </aside>
@@ -215,85 +215,7 @@
     </main>
   </div>
 
-  <!-- API Documentation Modal -->
-  <div id="api-docs-modal" class="modal-overlay hidden">
-    <div class="modal-card api-modal-card">
-      <div class="modal-brand">
-        <div class="brand-logo"><i class="fa-solid fa-code"></i></div>
-        <h2>Yogesh Chat REST API Reference</h2>
-        <p>Connect programmatically from Python, cURL, Node.js, or external systems</p>
-        <button id="close-api-docs-btn" class="icon-btn lightbox-close"><i class="fa-solid fa-xmark"></i></button>
-      </div>
 
-      <div class="api-docs-body">
-        <h3>⚡ Base URL & Health Endpoint</h3>
-        <a href="/api/v1/status" target="_blank" class="api-link-block">
-          <code class="api-code-block">http://localhost:3005/api/v1/status <i class="fa-solid fa-arrow-up-right-from-square"></i></code>
-        </a>
-
-        <h3>🔌 Available REST Endpoints</h3>
-        <div class="api-endpoint-list">
-          <div class="endpoint-card">
-            <span class="method-badge post">POST</span> <code>/api/v1/ai/chat</code>
-            <p>Send AI prompt with multi-turn session memory, model selection, & attached documents/voice audio files.</p>
-          </div>
-          <div class="endpoint-card">
-            <span class="method-badge post">POST</span> <code>/api/v1/upload</code>
-            <p>Upload raw documents, PDF, DOCX, images, audio, or video files to server storage.</p>
-          </div>
-          <div class="endpoint-card">
-            <span class="method-badge get">GET</span> <a href="/api/v1/ai/sessions" target="_blank" class="api-endpoint-link"><code>/api/v1/ai/sessions <i class="fa-solid fa-arrow-up-right-from-square"></i></code></a>
-            <p>Retrieve AI conversation session threads list.</p>
-          </div>
-          <div class="endpoint-card">
-            <span class="method-badge post">POST</span> <code>/api/v1/ai/sessions</code>
-            <p>Create a new AI conversation session thread.</p>
-          </div>
-          <div class="endpoint-card">
-            <span class="method-badge delete">DELETE</span> <code>/api/v1/ai/sessions/:id</code>
-            <p>Delete an AI conversation session thread.</p>
-          </div>
-          <div class="endpoint-card">
-            <span class="method-badge post">POST</span> <code>/api/v1/messages</code>
-            <p>Broadcast a text message live to the Global Lounge chat room via WebSockets.</p>
-          </div>
-          <div class="endpoint-card">
-            <span class="method-badge post">POST</span> <code>/api/v1/files</code>
-            <p>Broadcast shared files with optional caption live to the Global Lounge chat room.</p>
-          </div>
-          <div class="endpoint-card">
-            <span class="method-badge get">GET</span> <a href="/api/v1/messages" target="_blank" class="api-endpoint-link"><code>/api/v1/messages <i class="fa-solid fa-arrow-up-right-from-square"></i></code></a>
-            <p>Retrieve Global Lounge chat messages history.</p>
-          </div>
-          <div class="endpoint-card">
-            <span class="method-badge delete">DELETE</span> <code>/api/v1/messages/:id</code>
-            <p>Delete a chat message or uploaded file from server & disk storage.</p>
-          </div>
-          <div class="endpoint-card">
-            <span class="method-badge get">GET</span> <a href="/api/v1/status" target="_blank" class="api-endpoint-link"><code>/api/v1/status <i class="fa-solid fa-arrow-up-right-from-square"></i></code></a>
-            <p>Check server health, active users count, and available AI models.</p>
-          </div>
-        </div>
-
-        <h3>💻 Code Examples</h3>
-        <div class="api-code-examples">
-          <h4>cURL Example (AI Chat)</h4>
-          <pre class="api-code"><code>curl -X POST http://localhost:3005/api/v1/ai/chat \
-  -H "Content-Type: application/json" \
-  -d '{"prompt": "Explain quantum physics", "model": "Gemini 3.6 Flash (High)"}'</code></pre>
-
-          <h4>Python Example</h4>
-          <pre class="api-code"><code>import requests
-
-res = requests.post("http://localhost:3005/api/v1/ai/chat", json={
-    "prompt": "Write a Python script",
-    "model": "Gemini 3.6 Flash (High)"
-})
-print(res.json()["reply"])</code></pre>
-        </div>
-      </div>
-    </div>
-  </div>
 
   <!-- Image Lightbox Modal -->
   <div id="lightbox-modal" class="modal-overlay hidden">

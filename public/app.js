@@ -46,27 +46,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const lightboxDownload = document.getElementById('lightbox-download');
   const closeLightboxBtn = document.getElementById('close-lightbox-btn');
 
-  // API Docs Modal Elements
-  const openApiDocsBtn = document.getElementById('open-api-docs-btn');
-  const closeApiDocsBtn = document.getElementById('close-api-docs-btn');
-  const apiDocsModal = document.getElementById('api-docs-modal');
 
-  if (openApiDocsBtn && apiDocsModal) {
-    openApiDocsBtn.addEventListener('click', () => {
-      apiDocsModal.classList.remove('hidden');
-    });
-    apiDocsModal.addEventListener('click', (e) => {
-      if (e.target === apiDocsModal) {
-        apiDocsModal.classList.add('hidden');
-      }
-    });
-  }
-
-  if (closeApiDocsBtn && apiDocsModal) {
-    closeApiDocsBtn.addEventListener('click', () => {
-      apiDocsModal.classList.add('hidden');
-    });
-  }
 
   // Application State
   let currentUser = null;

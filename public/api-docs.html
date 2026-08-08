@@ -1,0 +1,642 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Yogesh Chat - REST API Documentation</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500;600&family=Inter:wght@300;400;500;600;700&family=Outfit:wght@500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+  <style>
+    :root {
+      --bg-dark: #0b0f19;
+      --bg-card: #151c2c;
+      --bg-card-hover: #1e273d;
+      --border-color: rgba(255, 255, 255, 0.08);
+      --accent-purple: #8b5cf6;
+      --accent-blue: #3b82f6;
+      --accent-cyan: #06b6d4;
+      --accent-green: #10b981;
+      --accent-red: #ef4444;
+      --text-main: #f3f4f6;
+      --text-subtle: #9ca3af;
+      --font-body: 'Inter', sans-serif;
+      --font-heading: 'Outfit', sans-serif;
+      --font-code: 'Fira Code', monospace;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background-color: var(--bg-dark);
+      color: var(--text-main);
+      font-family: var(--font-body);
+      line-height: 1.6;
+      display: flex;
+      min-height: 100vh;
+    }
+
+    /* Sidebar Navigation */
+    .docs-sidebar {
+      width: 280px;
+      background: #0f1523;
+      border-right: 1px solid var(--border-color);
+      padding: 24px 16px;
+      position: fixed;
+      top: 0;
+      bottom: 0;
+      left: 0;
+      overflow-y: auto;
+    }
+
+    .brand-header {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 24px;
+      padding-bottom: 16px;
+      border-bottom: 1px solid var(--border-color);
+    }
+
+    .brand-logo {
+      width: 38px;
+      height: 38px;
+      background: linear-gradient(135deg, #8b5cf6, #3b82f6);
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #fff;
+      font-size: 18px;
+    }
+
+    .brand-header h1 {
+      font-family: var(--font-heading);
+      font-size: 18px;
+      font-weight: 700;
+      color: #fff;
+    }
+
+    .brand-header p {
+      font-size: 11px;
+      color: var(--text-subtle);
+    }
+
+    .nav-section-title {
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--text-subtle);
+      margin: 16px 8px 8px 8px;
+      font-weight: 600;
+    }
+
+    .nav-list {
+      list-style: none;
+    }
+
+    .nav-link {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 12px;
+      color: #cbd5e1;
+      text-decoration: none;
+      font-size: 13px;
+      border-radius: 6px;
+      transition: all 0.15s ease;
+      margin-bottom: 2px;
+    }
+
+    .nav-link:hover, .nav-link.active {
+      background: rgba(139, 92, 246, 0.15);
+      color: #a78bfa;
+    }
+
+    .badge-method {
+      font-size: 10px;
+      font-weight: 700;
+      font-family: var(--font-code);
+      padding: 2px 6px;
+      border-radius: 4px;
+    }
+    .badge-method.get { background: rgba(59, 130, 246, 0.2); color: #60a5fa; }
+    .badge-method.post { background: rgba(16, 185, 129, 0.2); color: #34d399; }
+    .badge-method.delete { background: rgba(239, 68, 68, 0.2); color: #f87171; }
+
+    /* Main Content */
+    .docs-content {
+      margin-left: 280px;
+      flex: 1;
+      padding: 40px 60px;
+      max-width: 1100px;
+    }
+
+    .header-banner {
+      background: linear-gradient(135deg, rgba(139, 92, 246, 0.1), rgba(59, 130, 246, 0.1));
+      border: 1px solid rgba(139, 92, 246, 0.3);
+      border-radius: 16px;
+      padding: 24px 32px;
+      margin-bottom: 40px;
+    }
+
+    .header-banner h2 {
+      font-family: var(--font-heading);
+      font-size: 26px;
+      margin-bottom: 8px;
+      color: #fff;
+    }
+
+    .header-banner p {
+      color: #cbd5e1;
+      font-size: 14px;
+    }
+
+    .base-url-card {
+      display: inline-flex;
+      align-items: center;
+      gap: 12px;
+      background: #0f1523;
+      border: 1px solid var(--border-color);
+      padding: 8px 16px;
+      border-radius: 8px;
+      margin-top: 12px;
+      font-family: var(--font-code);
+      font-size: 13px;
+      color: #38bdf8;
+    }
+
+    /* Endpoint Documentation Card */
+    .endpoint-block {
+      background: var(--bg-card);
+      border: 1px solid var(--border-color);
+      border-radius: 12px;
+      padding: 24px;
+      margin-bottom: 32px;
+      scroll-margin-top: 40px;
+      transition: border-color 0.2s ease;
+    }
+
+    .endpoint-block:hover {
+      border-color: rgba(139, 92, 246, 0.3);
+    }
+
+    .endpoint-header {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 12px;
+    }
+
+    .endpoint-title {
+      font-family: var(--font-heading);
+      font-size: 20px;
+      color: #fff;
+    }
+
+    .endpoint-path {
+      font-family: var(--font-code);
+      font-size: 15px;
+      background: #0f1523;
+      padding: 4px 10px;
+      border-radius: 6px;
+      color: #f3f4f6;
+    }
+
+    .endpoint-desc {
+      color: var(--text-subtle);
+      font-size: 14px;
+      margin-bottom: 20px;
+    }
+
+    /* Code Examples Box */
+    .example-box {
+      background: #0d1117;
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 8px;
+      overflow: hidden;
+    }
+
+    .tab-header {
+      display: flex;
+      background: #161b22;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+      padding: 0 12px;
+    }
+
+    .tab-btn {
+      background: transparent;
+      border: none;
+      color: var(--text-subtle);
+      padding: 10px 16px;
+      font-size: 12px;
+      font-family: var(--font-body);
+      font-weight: 500;
+      cursor: pointer;
+      border-bottom: 2px solid transparent;
+      transition: all 0.15s ease;
+    }
+
+    .tab-btn:hover, .tab-btn.active {
+      color: #fff;
+      border-bottom-color: var(--accent-purple);
+    }
+
+    .code-content {
+      position: relative;
+    }
+
+    pre {
+      padding: 16px;
+      font-family: var(--font-code);
+      font-size: 13px;
+      overflow-x: auto;
+      color: #e2e8f0;
+      line-height: 1.5;
+    }
+
+    .copy-btn {
+      position: absolute;
+      top: 10px;
+      right: 10px;
+      background: rgba(255, 255, 255, 0.1);
+      border: none;
+      color: #fff;
+      padding: 4px 8px;
+      border-radius: 4px;
+      font-size: 11px;
+      cursor: pointer;
+      transition: background 0.15s ease;
+    }
+
+    .copy-btn:hover {
+      background: rgba(255, 255, 255, 0.2);
+    }
+
+    /* Responsive */
+    @media (max-width: 900px) {
+      body { flex-direction: column; }
+      .docs-sidebar { width: 100%; position: relative; height: auto; }
+      .docs-content { margin-left: 0; padding: 24px; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Navigation Sidebar -->
+  <aside class="docs-sidebar">
+    <div class="brand-header">
+      <div class="brand-logo"><i class="fa-solid fa-code"></i></div>
+      <div>
+        <h1>Yogesh Chat API</h1>
+        <p>v1.0.0 Reference Manual</p>
+      </div>
+    </div>
+
+    <div class="nav-section-title">Overview</div>
+    <ul class="nav-list">
+      <li><a href="#overview" class="nav-link"><i class="fa-solid fa-house"></i> System Status</a></li>
+      <li><a href="#uploads" class="nav-link"><i class="fa-solid fa-cloud-arrow-up"></i> File Uploads</a></li>
+    </ul>
+
+    <div class="nav-section-title">AI Assistant Engine</div>
+    <ul class="nav-list">
+      <li><a href="#ai-chat" class="nav-link"><span class="badge-method post">POST</span> AI Prompt & Docs</a></li>
+      <li><a href="#ai-sessions-list" class="nav-link"><span class="badge-method get">GET</span> List AI Sessions</a></li>
+      <li><a href="#ai-session-get" class="nav-link"><span class="badge-method get">GET</span> Get AI Session</a></li>
+      <li><a href="#ai-session-create" class="nav-link"><span class="badge-method post">POST</span> Create AI Session</a></li>
+      <li><a href="#ai-session-del" class="nav-link"><span class="badge-method delete">DEL</span> Delete AI Session</a></li>
+      <li><a href="#ai-session-del-all" class="nav-link"><span class="badge-method delete">DEL</span> Delete All Sessions</a></li>
+    </ul>
+
+    <div class="nav-section-title">Global Lounge Chat</div>
+    <ul class="nav-list">
+      <li><a href="#msg-post" class="nav-link"><span class="badge-method post">POST</span> Send Message</a></li>
+      <li><a href="#file-post" class="nav-link"><span class="badge-method post">POST</span> Share Files</a></li>
+      <li><a href="#msg-get" class="nav-link"><span class="badge-method get">GET</span> Lounge History</a></li>
+      <li><a href="#msg-del" class="nav-link"><span class="badge-method delete">DEL</span> Delete Message</a></li>
+      <li><a href="#msg-del-all" class="nav-link"><span class="badge-method delete">DEL</span> Delete All Messages</a></li>
+      <li><a href="#chats-del-all" class="nav-link"><span class="badge-method delete">DEL</span> Clear Everything</a></li>
+    </ul>
+  </aside>
+
+  <!-- Main Content Area -->
+  <main class="docs-content">
+
+    <div id="overview" class="header-banner">
+      <h2>⚡ Yogesh Chat REST API v1</h2>
+      <p>Connect programmatically from external applications, scripts, cURL, Python, or Webhooks. Supports full AI multimodal capabilities including document Q&A and voice audio transcription.</p>
+      <div class="base-url-card">
+        <span>Base Server URL:</span>
+        <code>http://localhost:3005</code>
+      </div>
+    </div>
+
+    <!-- 1. GET /api/v1/status -->
+    <div id="status" class="endpoint-block">
+      <div class="endpoint-header">
+        <span class="badge-method get">GET</span>
+        <span class="endpoint-path">/api/v1/status</span>
+      </div>
+      <h3 class="endpoint-title">Check Server Health & Available AI Models</h3>
+      <p class="endpoint-desc">Retrieves system health, active user count, total AI sessions, and available Gemini / Claude / GPT models.</p>
+      <div class="example-box">
+        <div class="tab-header">
+          <button class="tab-btn active">cURL</button>
+          <button class="tab-btn">Python</button>
+          <button class="tab-btn">JavaScript</button>
+        </div>
+        <div class="code-content">
+          <button class="copy-btn"><i class="fa-solid fa-copy"></i> Copy</button>
+          <pre><code>curl -s http://localhost:3005/api/v1/status</code></pre>
+        </div>
+      </div>
+    </div>
+
+    <!-- 2. POST /api/v1/upload -->
+    <div id="uploads" class="endpoint-block">
+      <div class="endpoint-header">
+        <span class="badge-method post">POST</span>
+        <span class="endpoint-path">/api/v1/upload</span>
+      </div>
+      <h3 class="endpoint-title">Upload Documents & Audio/Video Files</h3>
+      <p class="endpoint-desc">Upload raw PDF, DOCX, TXT, images, voice recordings (.wav, .webm), or videos via Multipart FormData.</p>
+      <div class="example-box">
+        <div class="tab-header">
+          <button class="tab-btn active">cURL</button>
+          <button class="tab-btn">Python</button>
+          <button class="tab-btn">JavaScript</button>
+        </div>
+        <div class="code-content">
+          <button class="copy-btn"><i class="fa-solid fa-copy"></i> Copy</button>
+          <pre><code>curl -X POST http://localhost:3005/api/v1/upload \
+  -F "files=@/path/to/voice_recording.wav" \
+  -F "files=@/path/to/document.pdf"</code></pre>
+        </div>
+      </div>
+    </div>
+
+    <!-- 3. POST /api/v1/ai/chat -->
+    <div id="ai-chat" class="endpoint-block">
+      <div class="endpoint-header">
+        <span class="badge-method post">POST</span>
+        <span class="endpoint-path">/api/v1/ai/chat</span>
+      </div>
+      <h3 class="endpoint-title">Send AI Prompt with Attached Docs / Voice Audio</h3>
+      <p class="endpoint-desc">Pass text prompts and attached file objects (`files: [...]`) to Gemini 3.6 Flash / Claude / GPT models with multi-turn session memory.</p>
+      <div class="example-box">
+        <div class="tab-header">
+          <button class="tab-btn active">cURL</button>
+          <button class="tab-btn">Python</button>
+          <button class="tab-btn">JavaScript</button>
+        </div>
+        <div class="code-content">
+          <button class="copy-btn"><i class="fa-solid fa-copy"></i> Copy</button>
+          <pre><code>curl -X POST http://localhost:3005/api/v1/ai/chat \
+  -H "Content-Type: application/json" \
+  -d '{
+    "prompt": "Transcribe this audio recording and list action items",
+    "model": "Gemini 3.6 Flash (High)",
+    "files": [{ "filename": "178617-voice_recording.wav", "originalname": "voice_recording.wav" }]
+  }'</code></pre>
+        </div>
+      </div>
+    </div>
+
+    <!-- 4. GET /api/v1/ai/sessions -->
+    <div id="ai-sessions-list" class="endpoint-block">
+      <div class="endpoint-header">
+        <span class="badge-method get">GET</span>
+        <span class="endpoint-path">/api/v1/ai/sessions</span>
+      </div>
+      <h3 class="endpoint-title">List AI Conversation Sessions</h3>
+      <p class="endpoint-desc">Fetches all multi-turn AI session threads for a specific user.</p>
+      <div class="example-box">
+        <div class="tab-header">
+          <button class="tab-btn active">cURL</button>
+          <button class="tab-btn">Python</button>
+        </div>
+        <div class="code-content">
+          <button class="copy-btn"><i class="fa-solid fa-copy"></i> Copy</button>
+          <pre><code>curl -s "http://localhost:3005/api/v1/ai/sessions?username=Yogesh"</code></pre>
+        </div>
+      </div>
+    </div>
+
+    <!-- 5. GET /api/v1/ai/sessions/:id -->
+    <div id="ai-session-get" class="endpoint-block">
+      <div class="endpoint-header">
+        <span class="badge-method get">GET</span>
+        <span class="endpoint-path">/api/v1/ai/sessions/:id</span>
+      </div>
+      <h3 class="endpoint-title">Get AI Session Transcript & Messages</h3>
+      <p class="endpoint-desc">Retrieves the complete message history and multi-turn transcript of a single AI session.</p>
+      <div class="example-box">
+        <div class="tab-header">
+          <button class="tab-btn active">cURL</button>
+        </div>
+        <div class="code-content">
+          <button class="copy-btn"><i class="fa-solid fa-copy"></i> Copy</button>
+          <pre><code>curl -s http://localhost:3005/api/v1/ai/sessions/session-1786171142081-623</code></pre>
+        </div>
+      </div>
+    </div>
+
+    <!-- 6. POST /api/v1/ai/sessions -->
+    <div id="ai-session-create" class="endpoint-block">
+      <div class="endpoint-header">
+        <span class="badge-method post">POST</span>
+        <span class="endpoint-path">/api/v1/ai/sessions</span>
+      </div>
+      <h3 class="endpoint-title">Create New AI Session Thread</h3>
+      <p class="endpoint-desc">Programmatically starts a new AI conversation thread.</p>
+      <div class="example-box">
+        <div class="tab-header">
+          <button class="tab-btn active">cURL</button>
+        </div>
+        <div class="code-content">
+          <button class="copy-btn"><i class="fa-solid fa-copy"></i> Copy</button>
+          <pre><code>curl -X POST http://localhost:3005/api/v1/ai/sessions \
+  -H "Content-Type: application/json" \
+  -d '{"username": "Yogesh", "title": "Data Analysis Project"}'</code></pre>
+        </div>
+      </div>
+    </div>
+
+    <!-- 7. DELETE /api/v1/ai/sessions/:id -->
+    <div id="ai-session-del" class="endpoint-block">
+      <div class="endpoint-header">
+        <span class="badge-method delete">DELETE</span>
+        <span class="endpoint-path">/api/v1/ai/sessions/:id</span>
+      </div>
+      <h3 class="endpoint-title">Delete Single AI Session Thread</h3>
+      <p class="endpoint-desc">Deletes an AI session thread from SQLite and unlinks associated attached files from disk.</p>
+      <div class="example-box">
+        <div class="tab-header">
+          <button class="tab-btn active">cURL</button>
+        </div>
+        <div class="code-content">
+          <button class="copy-btn"><i class="fa-solid fa-copy"></i> Copy</button>
+          <pre><code>curl -X DELETE http://localhost:3005/api/v1/ai/sessions/session-1786171142081-623</code></pre>
+        </div>
+      </div>
+    </div>
+
+    <!-- 8. DELETE /api/v1/ai/sessions -->
+    <div id="ai-session-del-all" class="endpoint-block">
+      <div class="endpoint-header">
+        <span class="badge-method delete">DELETE</span>
+        <span class="endpoint-path">/api/v1/ai/sessions</span>
+      </div>
+      <h3 class="endpoint-title">Delete ALL AI Sessions for User</h3>
+      <p class="endpoint-desc">Clears all AI threads belonging to a user.</p>
+      <div class="example-box">
+        <div class="tab-header">
+          <button class="tab-btn active">cURL</button>
+        </div>
+        <div class="code-content">
+          <button class="copy-btn"><i class="fa-solid fa-copy"></i> Copy</button>
+          <pre><code>curl -X DELETE "http://localhost:3005/api/v1/ai/sessions?username=Yogesh"</code></pre>
+        </div>
+      </div>
+    </div>
+
+    <!-- 9. POST /api/v1/messages -->
+    <div id="msg-post" class="endpoint-block">
+      <div class="endpoint-header">
+        <span class="badge-method post">POST</span>
+        <span class="endpoint-path">/api/v1/messages</span>
+      </div>
+      <h3 class="endpoint-title">Broadcast Text Message to Global Lounge</h3>
+      <p class="endpoint-desc">Posts a live text message to the Global Lounge chat room via WebSockets.</p>
+      <div class="example-box">
+        <div class="tab-header">
+          <button class="tab-btn active">cURL</button>
+        </div>
+        <div class="code-content">
+          <button class="copy-btn"><i class="fa-solid fa-copy"></i> Copy</button>
+          <pre><code>curl -X POST http://localhost:3005/api/v1/messages \
+  -H "Content-Type: application/json" \
+  -d '{"username": "Build Bot", "text": "Deployment complete successfully!"}'</code></pre>
+        </div>
+      </div>
+    </div>
+
+    <!-- 10. POST /api/v1/files -->
+    <div id="file-post" class="endpoint-block">
+      <div class="endpoint-header">
+        <span class="badge-method post">POST</span>
+        <span class="endpoint-path">/api/v1/files</span>
+      </div>
+      <h3 class="endpoint-title">Broadcast Shared Files to Global Lounge</h3>
+      <p class="endpoint-desc">Shares uploaded file objects with an optional caption in the Global Lounge.</p>
+      <div class="example-box">
+        <div class="tab-header">
+          <button class="tab-btn active">cURL</button>
+        </div>
+        <div class="code-content">
+          <button class="copy-btn"><i class="fa-solid fa-copy"></i> Copy</button>
+          <pre><code>curl -X POST http://localhost:3005/api/v1/files \
+  -H "Content-Type: application/json" \
+  -d '{
+    "username": "System Bot",
+    "caption": "Project Release v1.0 Assets",
+    "files": [{ "filename": "178617-release.zip", "originalName": "release.zip", "size": 1048576, "category": "archive", "url": "/uploads/178617-release.zip" }]
+  }'</code></pre>
+        </div>
+      </div>
+    </div>
+
+    <!-- 11. GET /api/v1/messages -->
+    <div id="msg-get" class="endpoint-block">
+      <div class="endpoint-header">
+        <span class="badge-method get">GET</span>
+        <span class="endpoint-path">/api/v1/messages</span>
+      </div>
+      <h3 class="endpoint-title">Retrieve Global Lounge Chat History</h3>
+      <p class="endpoint-desc">Fetches all Global Lounge messages stored in the SQLite database.</p>
+      <div class="example-box">
+        <div class="tab-header">
+          <button class="tab-btn active">cURL</button>
+        </div>
+        <div class="code-content">
+          <button class="copy-btn"><i class="fa-solid fa-copy"></i> Copy</button>
+          <pre><code>curl -s http://localhost:3005/api/v1/messages</code></pre>
+        </div>
+      </div>
+    </div>
+
+    <!-- 12. DELETE /api/v1/messages/:id -->
+    <div id="msg-del" class="endpoint-block">
+      <div class="endpoint-header">
+        <span class="badge-method delete">DELETE</span>
+        <span class="endpoint-path">/api/v1/messages/:id</span>
+      </div>
+      <h3 class="endpoint-title">Delete Single Message & Storage File</h3>
+      <p class="endpoint-desc">Deletes a chat message or shared file from SQLite and removes associated files from server disk storage.</p>
+      <div class="example-box">
+        <div class="tab-header">
+          <button class="tab-btn active">cURL</button>
+        </div>
+        <div class="code-content">
+          <button class="copy-btn"><i class="fa-solid fa-copy"></i> Copy</button>
+          <pre><code>curl -X DELETE http://localhost:3005/api/v1/messages/msg-1786171142081-123</code></pre>
+        </div>
+      </div>
+    </div>
+
+    <!-- 13. DELETE /api/v1/messages -->
+    <div id="msg-del-all" class="endpoint-block">
+      <div class="endpoint-header">
+        <span class="badge-method delete">DELETE</span>
+        <span class="endpoint-path">/api/v1/messages</span>
+      </div>
+      <h3 class="endpoint-title">Delete ALL Global Lounge Messages</h3>
+      <p class="endpoint-desc">Clears all messages in the Global Lounge chat room and removes files from disk.</p>
+      <div class="example-box">
+        <div class="tab-header">
+          <button class="tab-btn active">cURL</button>
+        </div>
+        <div class="code-content">
+          <button class="copy-btn"><i class="fa-solid fa-copy"></i> Copy</button>
+          <pre><code>curl -X DELETE http://localhost:3005/api/v1/messages</code></pre>
+        </div>
+      </div>
+    </div>
+
+    <!-- 14. DELETE /api/v1/chats/all -->
+    <div id="chats-del-all" class="endpoint-block">
+      <div class="endpoint-header">
+        <span class="badge-method delete">DELETE</span>
+        <span class="endpoint-path">/api/v1/chats/all</span>
+      </div>
+      <h3 class="endpoint-title">Clear ALL Chats, AI Sessions, & Disk Files</h3>
+      <p class="endpoint-desc">Completely purges all database tables (Global Lounge + AI Threads) and deletes all uploaded files from disk.</p>
+      <div class="example-box">
+        <div class="tab-header">
+          <button class="tab-btn active">cURL</button>
+        </div>
+        <div class="code-content">
+          <button class="copy-btn"><i class="fa-solid fa-copy"></i> Copy</button>
+          <pre><code>curl -X DELETE http://localhost:3005/api/v1/chats/all</code></pre>
+        </div>
+      </div>
+    </div>
+
+  </main>
+
+  <script>
+    // Copy code snippet to clipboard
+    document.querySelectorAll('.copy-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const code = btn.parentElement.querySelector('code').innerText;
+        navigator.clipboard.writeText(code);
+        btn.innerHTML = '<i class="fa-solid fa-check"></i> Copied!';
+        setTimeout(() => {
+          btn.innerHTML = '<i class="fa-solid fa-copy"></i> Copy';
+        }, 2000);
+      });
+    });
+  </script>
+</body>
+</html>

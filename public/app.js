@@ -4,7 +4,9 @@
 
 document.addEventListener('DOMContentLoaded', () => {
   // Socket.io Connection
-  const socket = io();
+  const socket = io({
+    transports: ['polling', 'websocket']
+  });
 
   // DOM Elements
   const joinModal = document.getElementById('join-modal');

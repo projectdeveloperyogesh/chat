@@ -18,7 +18,7 @@ const io = new Server(server, {
   }
 });
 
-const PORT = process.env.PORT || 3000;
+const PORT = process.env.PORT || 3005;
 const UPLOADS_DIR = path.join(__dirname, 'uploads');
 
 // Ensure uploads directory exists

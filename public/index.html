@@ -228,7 +228,7 @@
       <div class="api-docs-body">
         <h3>⚡ Base URL & Health Endpoint</h3>
         <a href="/api/v1/status" target="_blank" class="api-link-block">
-          <code class="api-code-block">http://localhost:3000/api/v1/status <i class="fa-solid fa-arrow-up-right-from-square"></i></code>
+          <code class="api-code-block">http://localhost:3005/api/v1/status <i class="fa-solid fa-arrow-up-right-from-square"></i></code>
         </a>
 
         <h3>🔌 Available REST Endpoints</h3>
@@ -278,14 +278,14 @@
         <h3>💻 Code Examples</h3>
         <div class="api-code-examples">
           <h4>cURL Example (AI Chat)</h4>
-          <pre class="api-code"><code>curl -X POST http://localhost:3000/api/v1/ai/chat \
+          <pre class="api-code"><code>curl -X POST http://localhost:3005/api/v1/ai/chat \
   -H "Content-Type: application/json" \
   -d '{"prompt": "Explain quantum physics", "model": "Gemini 3.6 Flash (High)"}'</code></pre>
 
           <h4>Python Example</h4>
           <pre class="api-code"><code>import requests
 
-res = requests.post("http://localhost:3000/api/v1/ai/chat", json={
+res = requests.post("http://localhost:3005/api/v1/ai/chat", json={
     "prompt": "Write a Python script",
     "model": "Gemini 3.6 Flash (High)"
 })

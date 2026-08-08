@@ -227,15 +227,39 @@
         <div class="api-endpoint-list">
           <div class="endpoint-card">
             <span class="method-badge post">POST</span> <code>/api/v1/ai/chat</code>
-            <p>Send an AI prompt with multi-turn session memory and model selection.</p>
+            <p>Send AI prompt with multi-turn session memory, model selection, & attached documents/voice audio files.</p>
+          </div>
+          <div class="endpoint-card">
+            <span class="method-badge post">POST</span> <code>/api/v1/upload</code>
+            <p>Upload raw documents, PDF, DOCX, images, audio, or video files to server storage.</p>
           </div>
           <div class="endpoint-card">
             <span class="method-badge get">GET</span> <a href="/api/v1/ai/sessions" target="_blank" class="api-endpoint-link"><code>/api/v1/ai/sessions <i class="fa-solid fa-arrow-up-right-from-square"></i></code></a>
-            <p>Retrieve AI conversation threads list.</p>
+            <p>Retrieve AI conversation session threads list.</p>
+          </div>
+          <div class="endpoint-card">
+            <span class="method-badge post">POST</span> <code>/api/v1/ai/sessions</code>
+            <p>Create a new AI conversation session thread.</p>
+          </div>
+          <div class="endpoint-card">
+            <span class="method-badge delete">DELETE</span> <code>/api/v1/ai/sessions/:id</code>
+            <p>Delete an AI conversation session thread.</p>
           </div>
           <div class="endpoint-card">
             <span class="method-badge post">POST</span> <code>/api/v1/messages</code>
-            <p>Post a live message to the Global Lounge chat room via WebSockets.</p>
+            <p>Broadcast a text message live to the Global Lounge chat room via WebSockets.</p>
+          </div>
+          <div class="endpoint-card">
+            <span class="method-badge post">POST</span> <code>/api/v1/files</code>
+            <p>Broadcast shared files with optional caption live to the Global Lounge chat room.</p>
+          </div>
+          <div class="endpoint-card">
+            <span class="method-badge get">GET</span> <a href="/api/v1/messages" target="_blank" class="api-endpoint-link"><code>/api/v1/messages <i class="fa-solid fa-arrow-up-right-from-square"></i></code></a>
+            <p>Retrieve Global Lounge chat messages history.</p>
+          </div>
+          <div class="endpoint-card">
+            <span class="method-badge delete">DELETE</span> <code>/api/v1/messages/:id</code>
+            <p>Delete a chat message or uploaded file from server & disk storage.</p>
           </div>
           <div class="endpoint-card">
             <span class="method-badge get">GET</span> <a href="/api/v1/status" target="_blank" class="api-endpoint-link"><code>/api/v1/status <i class="fa-solid fa-arrow-up-right-from-square"></i></code></a>

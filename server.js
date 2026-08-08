@@ -92,6 +92,39 @@ app.post('/api/upload', upload.array('files', 5), (req, res) => {
 // Public REST API v1 Endpoints
 // ==========================================================================
 
+// Alias /api/v1/upload to upload handler
+app.post('/api/v1/upload', upload.array('files', 5), (req, res) => {
+  try {
+    if (!req.files || req.files.length === 0) {
+      return res.status(400).json({ error: 'No files uploaded' });
+    }
+
+    const uploadedFiles = req.files.map(file => {
+      const category = getFileCategory(file.mimetype, file.originalname);
+      return {
+        id: file.filename,
+        originalName: file.originalname,
+        originalname: file.originalname,
+        filename: file.filename,
+        url: `/uploads/${file.filename}`,
+        size: file.size,
+        mimeType: file.mimetype,
+        category: category,
+        uploadedAt: new Date().toISOString()
+      };
+    });
+
+    res.json({ success: true, files: uploadedFiles });
+  } catch (err) {
+    console.error('File Upload Error:', err);
+    res.status(500).json({ error: 'File upload failed' });
+  }
+});
+
+// ==========================================================================
+// Public REST API v1 Endpoints (Full Web UI Feature Parity)
+// ==========================================================================
+
 // GET /api/v1/status - System Health & Endpoints Info
 app.get('/api/v1/status', (req, res) => {
   res.json({
@@ -110,19 +143,27 @@ app.get('/api/v1/status', (req, res) => {
     ],
     endpoints: [
       { path: 'GET /api/v1/status', description: 'Check server status and AI capabilities' },
-      { path: 'POST /api/v1/ai/chat', description: 'Send an AI prompt and receive response with session memory' },
-      { path: 'GET /api/v1/ai/sessions', description: 'List AI conversation sessions' },
-      { path: 'POST /api/v1/messages', description: 'Broadcast a message to the Global Lounge chat room' },
-      { path: 'GET /api/v1/messages', description: 'Retrieve Global Lounge chat messages history' }
+      { path: 'POST /api/v1/upload', description: 'Upload documents, images, audio, or video files' },
+      { path: 'POST /api/v1/ai/chat', description: 'Send an AI prompt with optional attached files & session memory' },
+      { path: 'GET /api/v1/ai/sessions', description: 'List AI conversation session threads' },
+      { path: 'GET /api/v1/ai/sessions/:id', description: 'Get full messages and history for an AI session' },
+      { path: 'POST /api/v1/ai/sessions', description: 'Create a new AI conversation session thread' },
+      { path: 'DELETE /api/v1/ai/sessions/:id', description: 'Delete an AI conversation session thread' },
+      { path: 'POST /api/v1/messages', description: 'Broadcast a text message to the Global Lounge chat room' },
+      { path: 'POST /api/v1/files', description: 'Broadcast shared files with caption to the Global Lounge chat room' },
+      { path: 'GET /api/v1/messages', description: 'Retrieve Global Lounge chat messages history' },
+      { path: 'DELETE /api/v1/messages/:id', description: 'Delete a chat message or shared file from server & storage' }
     ]
   });
 });
 
-// POST /api/v1/ai/chat - AI Prompt REST API
+// POST /api/v1/ai/chat - AI Prompt REST API (Supports Text, Attached Docs, Audio Files, & Sessions)
 app.post('/api/v1/ai/chat', (req, res) => {
   const text = (req.body.prompt || req.body.text || '').trim();
-  if (!text) {
-    return res.status(400).json({ success: false, error: 'Prompt is required' });
+  const rawFiles = (req.body.files && Array.isArray(req.body.files)) ? req.body.files : [];
+
+  if (!text && rawFiles.length === 0) {
+    return res.status(400).json({ success: false, error: 'Prompt text or attached files are required' });
   }
 
   const username = (req.body.username || 'API User').trim();
@@ -134,7 +175,7 @@ app.post('/api/v1/ai/chat', (req, res) => {
     sessionId = 'session-' + Date.now() + '-' + Math.round(Math.random() * 1000);
     session = {
       id: sessionId,
-      title: text.length > 24 ? text.substring(0, 24) + '...' : text,
+      title: text ? (text.length > 24 ? text.substring(0, 24) + '...' : text) : 'API File Analysis',
       username: username,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
@@ -153,10 +194,18 @@ app.post('/api/v1/ai/chat', (req, res) => {
     sessionId: sessionId,
     sender: { username, color: '#8b5cf6', id: 'api-user' },
     text: text,
+    files: rawFiles,
     timestamp: new Date().toISOString()
   };
   session.messages.push(userMsg);
   chatMessages.set(userMsg.id, userMsg);
+
+  // Map file objects for Python bridge
+  const fileObjects = rawFiles.map(f => ({
+    filename: f.filename,
+    originalname: f.originalname || f.originalName || f.filename,
+    filepath: path.join(UPLOADS_DIR, f.filename)
+  }));
 
   // Spawn Python AI agent
   const venvPythonPath = path.join(__dirname, '.venv', 'Scripts', 'python.exe');
@@ -188,7 +237,7 @@ app.post('/api/v1/ai/chat', (req, res) => {
       }
     }
 
-    session.history.push({ role: username, text: text });
+    session.history.push({ role: username, text: text || 'File Attachment Analysis' });
     session.history.push({ role: 'Yogesh AI', text: replyText });
     session.updatedAt = new Date().toISOString();
 
@@ -211,7 +260,8 @@ app.post('/api/v1/ai/chat', (req, res) => {
       success: true,
       reply: replyText,
       model: modelName,
-      sessionId: sessionId
+      sessionId: sessionId,
+      files: rawFiles
     });
   });
 
@@ -219,7 +269,8 @@ app.post('/api/v1/ai/chat', (req, res) => {
     prompt: text,
     username: username,
     history: session.history,
-    model: reqModel
+    model: reqModel,
+    files: fileObjects
   });
   pyProc.stdin.write(payload);
   pyProc.stdin.end();
@@ -232,7 +283,49 @@ app.get('/api/v1/ai/sessions', (req, res) => {
   res.json({ success: true, sessions });
 });
 
-// POST /api/v1/messages - Broadcast Message to Global Lounge
+// GET /api/v1/ai/sessions/:id - Get Single AI Session Details
+app.get('/api/v1/ai/sessions/:id', (req, res) => {
+  const session = aiSessionsMap.get(req.params.id);
+  if (!session) {
+    return res.status(404).json({ success: false, error: 'Session not found' });
+  }
+  res.json({ success: true, session });
+});
+
+// POST /api/v1/ai/sessions - Create New AI Session Thread
+app.post('/api/v1/ai/sessions', (req, res) => {
+  const username = (req.body.username || 'API User').trim();
+  const title = (req.body.title || 'New AI Thread').trim();
+  const newId = 'session-' + Date.now() + '-' + Math.round(Math.random() * 1000);
+  
+  const newSession = {
+    id: newId,
+    title: title,
+    username: username,
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+    messages: [],
+    history: []
+  };
+
+  aiSessionsMap.set(newId, newSession);
+  io.emit('ai:session:list:update', getUserSessionList(username));
+  res.json({ success: true, session: newSession });
+});
+
+// DELETE /api/v1/ai/sessions/:id - Delete AI Session Thread
+app.delete('/api/v1/ai/sessions/:id', (req, res) => {
+  const session = aiSessionsMap.get(req.params.id);
+  if (!session) {
+    return res.status(404).json({ success: false, error: 'Session not found' });
+  }
+
+  aiSessionsMap.delete(req.params.id);
+  io.emit('ai:session:list:update', getUserSessionList(session.username));
+  res.json({ success: true, message: 'Session deleted successfully' });
+});
+
+// POST /api/v1/messages - Broadcast Text Message to Global Lounge
 app.post('/api/v1/messages', (req, res) => {
   const text = (req.body.text || '').trim();
   if (!text) {
@@ -255,10 +348,69 @@ app.post('/api/v1/messages', (req, res) => {
   res.json({ success: true, message: msg });
 });
 
+// POST /api/v1/files - Broadcast Shared Files with Caption to Global Lounge
+app.post('/api/v1/files', (req, res) => {
+  const rawFiles = (req.body.files && Array.isArray(req.body.files)) ? req.body.files : [];
+  if (rawFiles.length === 0) {
+    return res.status(400).json({ success: false, error: 'Files array is required' });
+  }
+
+  const username = (req.body.username || 'API Bot').trim();
+  const caption = (req.body.caption || '').trim();
+  const color = getUserColor(username);
+
+  const msg = {
+    id: 'file-msg-' + Date.now() + '-' + Math.round(Math.random() * 1000),
+    sender: { username, color, id: 'api-' + Date.now() },
+    caption: caption,
+    files: rawFiles,
+    timestamp: new Date().toISOString()
+  };
+
+  chatMessages.set(msg.id, msg);
+  io.emit('file:new', msg);
+
+  res.json({ success: true, message: msg });
+});
+
 // GET /api/v1/messages - Global Lounge Messages History
 app.get('/api/v1/messages', (req, res) => {
   const messages = Array.from(chatMessages.values()).filter(m => !m.channel || m.channel === 'global');
   res.json({ success: true, messages });
+});
+
+// DELETE /api/v1/messages/:id - Delete Message & File from Server Storage
+app.delete('/api/v1/messages/:id', (req, res) => {
+  const targetId = req.params.id;
+  const msg = chatMessages.get(targetId);
+
+  if (!msg) {
+    return res.status(404).json({ success: false, error: 'Message not found' });
+  }
+
+  if (msg.files && Array.isArray(msg.files)) {
+    msg.files.forEach(fileObj => {
+      if (fileObj.filename) {
+        const fullPath = path.join(UPLOADS_DIR, fileObj.filename);
+        if (fs.existsSync(fullPath)) {
+          try {
+            fs.unlinkSync(fullPath);
+          } catch (err) {
+            console.error(`Failed to unlink file ${fullPath}:`, err);
+          }
+        }
+      }
+    });
+  }
+
+  chatMessages.delete(targetId);
+
+  for (const session of aiSessionsMap.values()) {
+    session.messages = session.messages.filter(m => m.id !== targetId);
+  }
+
+  io.emit('message:deleted', { id: targetId });
+  res.json({ success: true, message: 'Message and files deleted successfully' });
 });
 
 // Socket.IO State Management

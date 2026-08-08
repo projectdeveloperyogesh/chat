@@ -752,6 +752,11 @@ body {
   color: #60a5fa;
 }
 
+.method-badge.delete {
+  background: rgba(239, 68, 68, 0.2);
+  color: #f87171;
+}
+
 .api-code-examples h4 {
   font-size: 12px;
   color: var(--text-subtle);

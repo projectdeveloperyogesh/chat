@@ -132,9 +132,9 @@ def generate_ai_response(prompt, username, history=None, selected_model="Gemini 
         (selected_model, "high")
     )
 
-    # 1. Primary Engine: Route prompt through Antigravity CLI with model & effort
+    # 1. Primary Engine: Route prompt through Antigravity CLI with model
     try:
-        cmd = ["agy", "--model", target_model, "--effort", target_effort, "--print", full_prompt]
+        cmd = ["agy", "--model", target_model, "--print", full_prompt]
         result = subprocess.run(cmd, capture_output=True, text=True, timeout=90, encoding="utf-8")
         if result.returncode == 0 and result.stdout.strip():
             return {
@@ -176,8 +176,9 @@ def generate_ai_response(prompt, username, history=None, selected_model="Gemini 
             pass
 
     # 3. Fallback Engine
+    import re
     prompt_lower = prompt.lower()
-    if "hello" in prompt_lower or "hi" in prompt_lower or "hey" in prompt_lower:
+    if re.search(r'\b(hello|hi|hey)\b', prompt_lower):
         reply = f"Hello **{username}**! 👋 I am your **Yogesh Chat AI Assistant**. How can I help you today?"
     elif "python" in prompt_lower:
         reply = f"**Python** is a powerful language! In Yogesh Chat, I run via a Python bridge (`ai_agent.py`) calling **Antigravity CLI (`agy`)**."

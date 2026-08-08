@@ -1,0 +1,10 @@
+{
+  "appId": "com.yogesh.chat",
+  "appName": "Yogesh Chat",
+  "webDir": "public",
+  "bundledWebRuntime": false,
+  "server": {
+    "url": "https://troops-moderate-ratio-democratic.trycloudflare.com",
+    "cleartext": true
+  }
+}

@@ -1,8 +1,8 @@
 node_modules/
-uploads/*
-!uploads/.gitkeep
-.env
 .venv/
-__pycache__/
-*.log
-npm-debug.log*
+uploads/
+*.db
+*.db-journal
+*.db-shm
+*.db-wal
+.env

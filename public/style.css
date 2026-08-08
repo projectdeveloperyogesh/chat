@@ -577,6 +577,68 @@ body {
   padding: 8px;
 }
 
+.danger-btn {
+  background: rgba(239, 68, 68, 0.15);
+  border: 1px solid rgba(239, 68, 68, 0.35);
+  color: #f87171;
+  padding: 8px 16px;
+  border-radius: var(--radius-md);
+  font-weight: 600;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  transition: all 0.2s ease;
+}
+
+.danger-btn:hover {
+  background: rgba(239, 68, 68, 0.25);
+  border-color: rgba(239, 68, 68, 0.5);
+  box-shadow: 0 0 10px rgba(239, 68, 68, 0.3);
+}
+
+.danger-btn.sm {
+  padding: 6px 12px;
+  font-size: 12px;
+}
+
+.icon-text-btn.danger-sm {
+  color: #f87171;
+  border-color: rgba(239, 68, 68, 0.3);
+}
+
+.icon-text-btn.danger-sm:hover {
+  background: rgba(239, 68, 68, 0.2);
+  border-color: #f87171;
+}
+
+.ai-session-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.ai-session-item .session-delete-btn {
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  padding: 4px 6px;
+  border-radius: 4px;
+  font-size: 11px;
+  opacity: 0;
+  transition: all 0.2s ease;
+}
+
+.ai-session-item:hover .session-delete-btn {
+  opacity: 1;
+}
+
+.ai-session-item .session-delete-btn:hover {
+  color: #ef4444;
+  background: rgba(239, 68, 68, 0.2);
+}
+
 /* API Docs Modal & Elements */
 .icon-text-btn.full-width {
   width: 100%;

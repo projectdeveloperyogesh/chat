@@ -988,6 +988,35 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
+  // Delete All Buttons
+  const deleteAllAiThreadsBtn = document.getElementById('delete-all-ai-threads-btn');
+  const clearCurrentChatBtn = document.getElementById('clear-current-chat-btn');
+
+  if (deleteAllAiThreadsBtn) {
+    deleteAllAiThreadsBtn.addEventListener('click', () => {
+      if (confirm('Delete ALL AI session threads and their chat history?')) {
+        socket.emit('ai:session:delete:all');
+        messagesStore.ai = [];
+        createNewAiSession();
+      }
+    });
+  }
+
+  if (clearCurrentChatBtn) {
+    clearCurrentChatBtn.addEventListener('click', () => {
+      if (activeChannel === 'ai') {
+        if (confirm('Clear all messages in this AI Thread?')) {
+          socket.emit('ai:session:delete', { sessionId: aiSessionId });
+          createNewAiSession();
+        }
+      } else {
+        if (confirm('Clear all messages in the Global Lounge?')) {
+          socket.emit('message:delete:all');
+        }
+      }
+    });
+  }
+
   // Realtime Message Deletion Listener
   socket.on('message:deleted', ({ id }) => {
     messagesStore.global = messagesStore.global.filter(node => node.getAttribute('data-id') !== id);
@@ -1000,6 +1029,22 @@ document.addEventListener('DOMContentLoaded', () => {
       elem.style.transform = 'scale(0.9)';
       setTimeout(() => elem.remove(), 300);
     }
+  });
+
+  // Realtime Global Messages Clear Listener
+  socket.on('messages:cleared:global', () => {
+    messagesStore.global = [];
+    if (activeChannel === 'global') {
+      renderChannelMessages();
+    }
+  });
+
+  // Realtime Clear All Data Listener
+  socket.on('chat:cleared:all', () => {
+    messagesStore.global = [];
+    messagesStore.ai = [];
+    createNewAiSession();
+    renderChannelMessages();
   });
 
   // Typing Update

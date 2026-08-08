@@ -7,6 +7,7 @@ const fs = require('fs');
 const os = require('os');
 const { execFile, spawn } = require('child_process');
 const cors = require('cors');
+const db = require('./database');
 
 const app = express();
 const server = http.createServer(app);
@@ -132,7 +133,7 @@ app.get('/api/v1/status', (req, res) => {
     app: 'Yogesh Chat',
     version: '1.0.0',
     activeUsersCount: activeUsers.size,
-    aiSessionsCount: aiSessionsMap.size,
+    aiSessionsCount: db.getUserSessions('Yogesh').length,
     availableModels: [
       'Gemini 3.6 Flash (High)',
       'Gemini 3.1 Pro (High)',
@@ -149,10 +150,13 @@ app.get('/api/v1/status', (req, res) => {
       { path: 'GET /api/v1/ai/sessions/:id', description: 'Get full messages and history for an AI session' },
       { path: 'POST /api/v1/ai/sessions', description: 'Create a new AI conversation session thread' },
       { path: 'DELETE /api/v1/ai/sessions/:id', description: 'Delete an AI conversation session thread' },
+      { path: 'DELETE /api/v1/ai/sessions', description: 'Delete ALL AI conversation sessions for a user' },
       { path: 'POST /api/v1/messages', description: 'Broadcast a text message to the Global Lounge chat room' },
       { path: 'POST /api/v1/files', description: 'Broadcast shared files with caption to the Global Lounge chat room' },
       { path: 'GET /api/v1/messages', description: 'Retrieve Global Lounge chat messages history' },
-      { path: 'DELETE /api/v1/messages/:id', description: 'Delete a chat message or shared file from server & storage' }
+      { path: 'DELETE /api/v1/messages/:id', description: 'Delete a single chat message or shared file' },
+      { path: 'DELETE /api/v1/messages', description: 'Delete ALL Global Lounge messages' },
+      { path: 'DELETE /api/v1/chats/all', description: 'Clear ALL chats, AI sessions, and uploaded files completely' }
     ]
   });
 });
@@ -170,7 +174,7 @@ app.post('/api/v1/ai/chat', (req, res) => {
   const reqModel = (req.body.model || 'Gemini 3.6 Flash (High)').trim();
   let sessionId = (req.body.sessionId || '').trim();
 
-  let session = aiSessionsMap.get(sessionId);
+  let session = db.getAiSession(sessionId);
   if (!session) {
     sessionId = 'session-' + Date.now() + '-' + Math.round(Math.random() * 1000);
     session = {
@@ -182,10 +186,11 @@ app.post('/api/v1/ai/chat', (req, res) => {
       messages: [],
       history: []
     };
-    aiSessionsMap.set(sessionId, session);
+    db.saveAiSession(session);
+  } else {
+    session.updatedAt = new Date().toISOString();
+    db.saveAiSession(session);
   }
-
-  session.updatedAt = new Date().toISOString();
 
   // User message object
   const userMsg = {
@@ -197,8 +202,7 @@ app.post('/api/v1/ai/chat', (req, res) => {
     files: rawFiles,
     timestamp: new Date().toISOString()
   };
-  session.messages.push(userMsg);
-  chatMessages.set(userMsg.id, userMsg);
+  db.saveMessage(userMsg);
 
   // Map file objects for Python bridge
   const fileObjects = rawFiles.map(f => ({
@@ -237,9 +241,10 @@ app.post('/api/v1/ai/chat', (req, res) => {
       }
     }
 
-    session.history.push({ role: username, text: text || 'File Attachment Analysis' });
-    session.history.push({ role: 'Yogesh AI', text: replyText });
+    db.addAiHistory(sessionId, username, text || 'File Attachment Analysis');
+    db.addAiHistory(sessionId, 'Yogesh AI', replyText);
     session.updatedAt = new Date().toISOString();
+    db.saveAiSession(session);
 
     const aiMsg = {
       id: 'ai-res-' + Date.now() + '-' + Math.round(Math.random() * 1000),
@@ -249,8 +254,7 @@ app.post('/api/v1/ai/chat', (req, res) => {
       text: replyText,
       timestamp: new Date().toISOString()
     };
-    session.messages.push(aiMsg);
-    chatMessages.set(aiMsg.id, aiMsg);
+    db.saveMessage(aiMsg);
 
     // Broadcast live to WebSockets
     io.emit('ai:message:new', userMsg);
@@ -279,13 +283,13 @@ app.post('/api/v1/ai/chat', (req, res) => {
 // GET /api/v1/ai/sessions - List AI Sessions
 app.get('/api/v1/ai/sessions', (req, res) => {
   const username = (req.query.username || '').trim();
-  const sessions = getUserSessionList(username || 'Yogesh');
+  const sessions = db.getUserSessions(username || 'Yogesh');
   res.json({ success: true, sessions });
 });
 
 // GET /api/v1/ai/sessions/:id - Get Single AI Session Details
 app.get('/api/v1/ai/sessions/:id', (req, res) => {
-  const session = aiSessionsMap.get(req.params.id);
+  const session = db.getAiSession(req.params.id);
   if (!session) {
     return res.status(404).json({ success: false, error: 'Session not found' });
   }
@@ -308,21 +312,47 @@ app.post('/api/v1/ai/sessions', (req, res) => {
     history: []
   };
 
-  aiSessionsMap.set(newId, newSession);
-  io.emit('ai:session:list:update', getUserSessionList(username));
+  db.saveAiSession(newSession);
+  io.emit('ai:session:list:update', db.getUserSessions(username));
   res.json({ success: true, session: newSession });
 });
 
 // DELETE /api/v1/ai/sessions/:id - Delete AI Session Thread
 app.delete('/api/v1/ai/sessions/:id', (req, res) => {
-  const session = aiSessionsMap.get(req.params.id);
+  const session = db.getAiSession(req.params.id);
   if (!session) {
     return res.status(404).json({ success: false, error: 'Session not found' });
   }
 
-  aiSessionsMap.delete(req.params.id);
-  io.emit('ai:session:list:update', getUserSessionList(session.username));
+  const unlinks = db.deleteAiSession(req.params.id);
+  unlinks.forEach(fileObj => {
+    if (fileObj.filename) {
+      const fullPath = path.join(UPLOADS_DIR, fileObj.filename);
+      if (fs.existsSync(fullPath)) {
+        try { fs.unlinkSync(fullPath); } catch (e) {}
+      }
+    }
+  });
+
+  io.emit('ai:session:list:update', db.getUserSessions(session.username));
   res.json({ success: true, message: 'Session deleted successfully' });
+});
+
+// DELETE /api/v1/ai/sessions - Delete ALL AI Session Threads for User
+app.delete('/api/v1/ai/sessions', (req, res) => {
+  const username = (req.query.username || 'Yogesh').trim();
+  const unlinks = db.deleteAllAiSessions(username);
+  unlinks.forEach(fileObj => {
+    if (fileObj.filename) {
+      const fullPath = path.join(UPLOADS_DIR, fileObj.filename);
+      if (fs.existsSync(fullPath)) {
+        try { fs.unlinkSync(fullPath); } catch (e) {}
+      }
+    }
+  });
+
+  io.emit('ai:session:list:update', []);
+  res.json({ success: true, message: 'All AI sessions deleted successfully' });
 });
 
 // POST /api/v1/messages - Broadcast Text Message to Global Lounge
@@ -342,7 +372,7 @@ app.post('/api/v1/messages', (req, res) => {
     timestamp: new Date().toISOString()
   };
 
-  chatMessages.set(msg.id, msg);
+  db.saveMessage(msg);
   io.emit('message:new', msg);
 
   res.json({ success: true, message: msg });
@@ -367,7 +397,7 @@ app.post('/api/v1/files', (req, res) => {
     timestamp: new Date().toISOString()
   };
 
-  chatMessages.set(msg.id, msg);
+  db.saveMessage(msg);
   io.emit('file:new', msg);
 
   res.json({ success: true, message: msg });
@@ -375,62 +405,68 @@ app.post('/api/v1/files', (req, res) => {
 
 // GET /api/v1/messages - Global Lounge Messages History
 app.get('/api/v1/messages', (req, res) => {
-  const messages = Array.from(chatMessages.values()).filter(m => !m.channel || m.channel === 'global');
+  const messages = db.getGlobalMessages();
   res.json({ success: true, messages });
 });
 
 // DELETE /api/v1/messages/:id - Delete Message & File from Server Storage
 app.delete('/api/v1/messages/:id', (req, res) => {
   const targetId = req.params.id;
-  const msg = chatMessages.get(targetId);
+  const unlinks = db.deleteMessage(targetId);
 
-  if (!msg) {
-    return res.status(404).json({ success: false, error: 'Message not found' });
-  }
-
-  if (msg.files && Array.isArray(msg.files)) {
-    msg.files.forEach(fileObj => {
-      if (fileObj.filename) {
-        const fullPath = path.join(UPLOADS_DIR, fileObj.filename);
-        if (fs.existsSync(fullPath)) {
-          try {
-            fs.unlinkSync(fullPath);
-          } catch (err) {
-            console.error(`Failed to unlink file ${fullPath}:`, err);
-          }
-        }
+  unlinks.forEach(fileObj => {
+    if (fileObj.filename) {
+      const fullPath = path.join(UPLOADS_DIR, fileObj.filename);
+      if (fs.existsSync(fullPath)) {
+        try { fs.unlinkSync(fullPath); } catch (e) {}
       }
-    });
-  }
-
-  chatMessages.delete(targetId);
-
-  for (const session of aiSessionsMap.values()) {
-    session.messages = session.messages.filter(m => m.id !== targetId);
-  }
+    }
+  });
 
   io.emit('message:deleted', { id: targetId });
   res.json({ success: true, message: 'Message and files deleted successfully' });
 });
 
+// DELETE /api/v1/messages - Delete ALL Global Lounge Messages
+app.delete('/api/v1/messages', (req, res) => {
+  const unlinks = db.deleteAllGlobalMessages();
+
+  unlinks.forEach(fileObj => {
+    if (fileObj.filename) {
+      const fullPath = path.join(UPLOADS_DIR, fileObj.filename);
+      if (fs.existsSync(fullPath)) {
+        try { fs.unlinkSync(fullPath); } catch (e) {}
+      }
+    }
+  });
+
+  io.emit('messages:cleared:global');
+  res.json({ success: true, message: 'All Global Lounge messages deleted successfully' });
+});
+
+// DELETE /api/v1/chats/all - Delete ALL Chats, Sessions, & Files Completely
+app.delete('/api/v1/chats/all', (req, res) => {
+  const unlinks = db.deleteAllData();
+
+  unlinks.forEach(fileObj => {
+    if (fileObj.filename) {
+      const fullPath = path.join(UPLOADS_DIR, fileObj.filename);
+      if (fs.existsSync(fullPath)) {
+        try { fs.unlinkSync(fullPath); } catch (e) {}
+      }
+    }
+  });
+
+  io.emit('chat:cleared:all');
+  res.json({ success: true, message: 'All chats, sessions, and files deleted successfully' });
+});
+
 // Socket.IO State Management
 const activeUsers = new Map(); // socket.id -> { username, color, joinedAt }
 const typingUsers = new Set(); // set of usernames currently typing
-const chatMessages = new Map(); // messageId -> msgObj
-const aiSessionsMap = new Map(); // sessionId -> { id, title, username, createdAt, updatedAt, messages: [], history: [] }
 
 function getUserSessionList(username) {
-  const list = [];
-  for (const s of aiSessionsMap.values()) {
-    if (s.username.toLowerCase() === username.toLowerCase()) {
-      list.push({
-        id: s.id,
-        title: s.title,
-        updatedAt: s.updatedAt
-      });
-    }
-  }
-  return list.sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt));
+  return db.getUserSessions(username);
 }
 
 // Generate consistent avatar color based on username
@@ -499,7 +535,7 @@ io.on('connection', (socket) => {
   socket.on('ai:session:select', (data, callback) => {
     const user = activeUsers.get(socket.id);
     if (!user || !data || !data.sessionId) return;
-    const session = aiSessionsMap.get(data.sessionId);
+    const session = db.getAiSession(data.sessionId);
     if (session && callback) {
       callback({
         success: true,
@@ -530,7 +566,7 @@ io.on('connection', (socket) => {
       history: []
     };
 
-    aiSessionsMap.set(newId, newSession);
+    db.saveAiSession(newSession);
     socket.emit('ai:session:list:update', getUserSessionList(user.username));
 
     if (callback) callback({ success: true, session: newSession });
@@ -541,8 +577,31 @@ io.on('connection', (socket) => {
     const user = activeUsers.get(socket.id);
     if (!user || !data || !data.sessionId) return;
 
-    aiSessionsMap.delete(data.sessionId);
+    const unlinks = db.deleteAiSession(data.sessionId);
+    unlinks.forEach(fileObj => {
+      if (fileObj.filename) {
+        const filePath = path.join(UPLOADS_DIR, fileObj.filename);
+        fs.unlink(filePath, (err) => {});
+      }
+    });
+
     socket.emit('ai:session:list:update', getUserSessionList(user.username));
+  });
+
+  // Handle AI Session Delete All
+  socket.on('ai:session:delete:all', () => {
+    const user = activeUsers.get(socket.id);
+    if (!user) return;
+
+    const unlinks = db.deleteAllAiSessions(user.username);
+    unlinks.forEach(fileObj => {
+      if (fileObj.filename) {
+        const filePath = path.join(UPLOADS_DIR, fileObj.filename);
+        fs.unlink(filePath, (err) => {});
+      }
+    });
+
+    socket.emit('ai:session:list:update', []);
   });
 
   // Handle Text Message
@@ -564,7 +623,7 @@ io.on('connection', (socket) => {
       timestamp: new Date().toISOString()
     };
 
-    chatMessages.set(msg.id, msg);
+    db.saveMessage(msg);
     io.emit('message:new', msg);
   });
 
@@ -587,7 +646,7 @@ io.on('connection', (socket) => {
       timestamp: new Date().toISOString()
     };
 
-    chatMessages.set(fileMsg.id, fileMsg);
+    db.saveMessage(fileMsg);
     io.emit('file:new', fileMsg);
   });
 
@@ -597,23 +656,42 @@ io.on('connection', (socket) => {
     if (!user || !data || !data.id) return;
 
     const msgId = data.id;
-    const msg = chatMessages.get(msgId);
+    const unlinks = db.deleteMessage(msgId);
 
-    // If message has files, clean up disk storage
-    if (msg && msg.files && Array.isArray(msg.files)) {
-      msg.files.forEach(file => {
-        if (file.filename) {
-          const filePath = path.join(UPLOADS_DIR, file.filename);
-          fs.unlink(filePath, (err) => {
-            if (err) console.error(`Failed to delete file ${filePath}:`, err.message);
-            else console.log(`Deleted file from storage: ${file.filename}`);
-          });
-        }
-      });
-    }
+    unlinks.forEach(fileObj => {
+      if (fileObj.filename) {
+        const filePath = path.join(UPLOADS_DIR, fileObj.filename);
+        fs.unlink(filePath, (err) => {});
+      }
+    });
 
-    chatMessages.delete(msgId);
     io.emit('message:deleted', { id: msgId, deletedBy: user.username });
+  });
+
+  // Handle Clear All Messages in Global Lounge
+  socket.on('message:delete:all', () => {
+    const unlinks = db.deleteAllGlobalMessages();
+    unlinks.forEach(fileObj => {
+      if (fileObj.filename) {
+        const filePath = path.join(UPLOADS_DIR, fileObj.filename);
+        fs.unlink(filePath, (err) => {});
+      }
+    });
+
+    io.emit('messages:cleared:global');
+  });
+
+  // Handle Clear ALL Data (Global Lounge + AI Sessions + Disk Files)
+  socket.on('chat:clear:all', () => {
+    const unlinks = db.deleteAllData();
+    unlinks.forEach(fileObj => {
+      if (fileObj.filename) {
+        const filePath = path.join(UPLOADS_DIR, fileObj.filename);
+        fs.unlink(filePath, (err) => {});
+      }
+    });
+
+    io.emit('chat:cleared:all');
   });
 
   // Handle AI Assistant Prompt
@@ -625,7 +703,7 @@ io.on('connection', (socket) => {
     if (!text) return;
 
     let sessionId = (data.sessionId || '').trim();
-    let session = aiSessionsMap.get(sessionId);
+    let session = db.getAiSession(sessionId);
 
     if (!session) {
       sessionId = 'session-' + Date.now() + '-' + Math.round(Math.random() * 1000);
@@ -638,12 +716,14 @@ io.on('connection', (socket) => {
         messages: [],
         history: []
       };
-      aiSessionsMap.set(sessionId, session);
+      db.saveAiSession(session);
     } else if (session.title === 'New Conversation' || !session.title) {
       session.title = text.length > 24 ? text.substring(0, 24) + '...' : text;
+      db.saveAiSession(session);
+    } else {
+      session.updatedAt = new Date().toISOString();
+      db.saveAiSession(session);
     }
-
-    session.updatedAt = new Date().toISOString();
 
     const filesList = (data.files && Array.isArray(data.files)) ? data.files : [];
 
@@ -662,8 +742,7 @@ io.on('connection', (socket) => {
       timestamp: new Date().toISOString()
     };
 
-    session.messages.push(userMsg);
-    chatMessages.set(userMsg.id, userMsg);
+    db.saveMessage(userMsg);
     socket.emit('ai:message:new', userMsg);
     socket.emit('ai:session:list:update', getUserSessionList(user.username));
 
@@ -703,10 +782,11 @@ io.on('connection', (socket) => {
         console.error("Python AI agent stderr:", stderrData);
       }
 
-      // Update multi-turn session history & messages
-      session.history.push({ role: user.username, text: text });
-      session.history.push({ role: 'Yogesh AI', text: replyText });
+      // Update multi-turn session history & messages in SQLite
+      db.addAiHistory(sessionId, user.username, text);
+      db.addAiHistory(sessionId, 'Yogesh AI', replyText);
       session.updatedAt = new Date().toISOString();
+      db.saveAiSession(session);
 
       // 4. AI Response Message object
       const aiMsg = {
@@ -724,8 +804,7 @@ io.on('connection', (socket) => {
         timestamp: new Date().toISOString()
       };
 
-      session.messages.push(aiMsg);
-      chatMessages.set(aiMsg.id, aiMsg);
+      db.saveMessage(aiMsg);
       socket.emit('ai:message:new', aiMsg);
       socket.emit('ai:session:list:update', getUserSessionList(user.username));
     });

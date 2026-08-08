@@ -63,9 +63,14 @@
       <div id="ai-threads-section" class="sidebar-section ai-threads-section">
         <div class="section-title">
           <span>AI Threads</span>
-          <button id="add-ai-thread-btn" class="icon-text-btn" title="Create New AI Thread">
-            <i class="fa-solid fa-plus"></i> New
-          </button>
+          <div class="section-actions" style="display: flex; gap: 4px;">
+            <button id="add-ai-thread-btn" class="icon-text-btn" title="Create New AI Thread">
+              <i class="fa-solid fa-plus"></i> New
+            </button>
+            <button id="delete-all-ai-threads-btn" class="icon-text-btn danger-sm" title="Delete All AI Threads">
+              <i class="fa-solid fa-trash"></i> Clear All
+            </button>
+          </div>
         </div>
         <ul id="ai-session-list" class="ai-session-list">
           <!-- Dynamic session items -->
@@ -134,7 +139,10 @@
             </select>
           </div>
           <button id="new-ai-session-btn" class="primary-btn sm" title="Start a fresh AI conversation session">
-            <i class="fa-solid fa-plus"></i> New AI Thread
+            <i class="fa-solid fa-plus"></i> New Thread
+          </button>
+          <button id="clear-current-chat-btn" class="danger-btn sm" title="Clear Messages in Current Channel">
+            <i class="fa-solid fa-trash-can"></i> Clear Chat
           </button>
           <div class="user-avatars-stack" id="header-avatars">
             <!-- Avatars stack -->

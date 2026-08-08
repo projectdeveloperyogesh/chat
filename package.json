@@ -7,10 +7,17 @@
     "start": "node server.js",
     "dev": "node --watch server.js"
   },
-  "keywords": ["chat", "socketio", "file-sharing", "express", "nodejs"],
+  "keywords": [
+    "chat",
+    "socketio",
+    "file-sharing",
+    "express",
+    "nodejs"
+  ],
   "author": "",
   "license": "MIT",
   "dependencies": {
+    "better-sqlite3": "^13.0.3",
     "cors": "^2.8.5",
     "express": "^4.19.2",
     "multer": "^1.4.5-lts.1",

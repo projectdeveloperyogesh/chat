@@ -238,47 +238,10 @@ def generate_ai_response(prompt, username, history=None, selected_model="Gemini 
     except Exception as err:
         sys.stderr.write(f"AGY Default Exception: {err}\n")
 
-    # 2. Standalone Free Cloud Engine (No API key, No local server needed)
-    try:
-        os.environ["G4F_CHECK_VERSION"] = "False"
-        from g4f.client import Client
-        client = Client()
-        response = client.chat.completions.create(
-            model="llama-3.3-70b",
-            messages=[{"role": "user", "content": full_prompt}]
-        )
-        if response and response.choices and response.choices[0].message.content:
-            reply_content = response.choices[0].message.content.strip()
-            if reply_content:
-                return {
-                    "success": True,
-                    "reply": reply_content,
-                    "model": "Free Cloud AI Engine (Llama 3.3 70B)"
-                }
-    except Exception as e:
-        sys.stderr.write(f"Free Cloud AI Error: {e}\n")
-
-    # 3. Secondary Engine: Try using google-genai / google.generativeai if API key is present
-    api_key = os.environ.get("GEMINI_API_KEY") or os.environ.get("GOOGLE_API_KEY")
-    if api_key:
-        try:
-            import google.generativeai as genai
-            genai.configure(api_key=api_key)
-            model = genai.GenerativeModel("gemini-1.5-flash")
-            response = model.generate_content(full_prompt)
-            if response and response.text:
-                return {
-                    "success": True,
-                    "reply": response.text.strip(),
-                    "model": "gemini-1.5-flash"
-                }
-        except Exception as e:
-            sys.stderr.write(f"Google GenAI Error: {e}\n")
-
     return {
         "success": True,
-        "reply": f"Hello {username}! I am Yogesh Chat AI powered by Antigravity Gemini Flash. Ask me any question, coding task, or upload documents/audio files for analysis!",
-        "model": "Gemini 3.6 Flash"
+        "reply": f"Hello {username}! I am Yogesh Chat AI powered by Antigravity CLI. Ask me any question, coding task, or upload documents/audio files for analysis!",
+        "model": "Antigravity CLI (Gemini 3.8 Flash)"
     }
 
 def main():

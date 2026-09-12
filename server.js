@@ -108,6 +108,18 @@ const upload = multer({
   limits: { fileSize: 50 * 1024 * 1024 } // 50MB max file size
 });
 
+// Determine cross-platform Python executable path (Windows / Linux / Docker)
+function getPythonCommand() {
+  const venvWin = path.join(__dirname, '.venv', 'Scripts', 'python.exe');
+  const venvLinux = path.join(__dirname, '.venv', 'bin', 'python');
+  const venvLinux3 = path.join(__dirname, '.venv', 'bin', 'python3');
+
+  if (fs.existsSync(venvWin)) return venvWin;
+  if (fs.existsSync(venvLinux)) return venvLinux;
+  if (fs.existsSync(venvLinux3)) return venvLinux3;
+  return process.platform === 'win32' ? 'python' : 'python3';
+}
+
 // Determine file category helper
 function getFileCategory(mimeType, filename) {
   if (mimeType.startsWith('image/')) return 'image';
@@ -272,10 +284,13 @@ app.post('/api/v1/ai/chat', (req, res) => {
   }));
 
   // Spawn Python AI agent
-  const venvPythonPath = path.join(__dirname, '.venv', 'Scripts', 'python.exe');
-  const pythonCmd = fs.existsSync(venvPythonPath) ? venvPythonPath : 'python';
+  const pythonCmd = getPythonCommand();
   const pyScriptPath = path.join(__dirname, 'ai_agent.py');
   const pyProc = spawn(pythonCmd, [pyScriptPath], { cwd: __dirname });
+
+  pyProc.on('error', (err) => {
+    console.error("Python API Spawn Error:", err);
+  });
 
   let stdoutData = '';
   let stderrData = '';
@@ -831,11 +846,16 @@ io.on('connection', (socket) => {
     // 2. Broadcast AI typing status
     socket.emit('ai:typing', { isTyping: true, username: 'Yogesh AI' });
 
-    // 3. Spawn Python AI Agent using .venv Python if present
-    const venvPythonPath = path.join(__dirname, '.venv', 'Scripts', 'python.exe');
-    const pythonCmd = fs.existsSync(venvPythonPath) ? venvPythonPath : 'python';
+    // 3. Spawn Python AI Agent using cross-platform getPythonCommand()
+    const pythonCmd = getPythonCommand();
     const pyScriptPath = path.join(__dirname, 'ai_agent.py');
     const pyProc = spawn(pythonCmd, [pyScriptPath], { cwd: __dirname });
+
+    pyProc.on('error', (err) => {
+      console.error("Python Socket Spawn Error:", err);
+      socket.emit('ai:typing', { isTyping: false, username: 'Yogesh AI' });
+    });
+
     let stdoutData = '';
     let stderrData = '';
 

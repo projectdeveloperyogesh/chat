@@ -622,7 +622,8 @@ if [ -z "$PROMPT" ]; then
   echo "Antigravity CLI v1.2.2 (Linux Cloud Server)"
   exit 0
 fi
-python3 /app/ai_agent.py "$PROMPT"
+export AGY_RECURSION_ACTIVE=1
+python3 /app/ai_agent.py --print "$PROMPT"
 `;
       fs.writeFileSync(tmpAgyFile, agyScriptContent, { mode: 0o755 });
       fs.chmodSync(tmpAgyFile, 0o755);

@@ -38,7 +38,8 @@ if [ -z "$PROMPT" ]; then\n\
   echo "Antigravity CLI v1.2.2 (Linux Cloud Server)"\n\
   exit 0\n\
 fi\n\
-python3 /app/ai_agent.py "$PROMPT"\n\
+export AGY_RECURSION_ACTIVE=1\n\
+python3 /app/ai_agent.py --print "$PROMPT"\n\
 ' > /usr/local/bin/agy && chmod +x /usr/local/bin/agy
 
 # Set working directory

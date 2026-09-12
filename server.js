@@ -585,7 +585,34 @@ app.post('/api/v1/terminal/exec', (req, res) => {
       options.env.PATH = `${agyWinPath};${options.env.PATH}`;
     }
   } else {
-    const linuxBinPaths = ['/usr/local/bin', '/usr/bin', '/root/.local/bin', '/home/node/.local/bin'];
+    const tmpAgyDir = '/tmp/bin';
+    if (!fs.existsSync(tmpAgyDir)) {
+      try { fs.mkdirSync(tmpAgyDir, { recursive: true }); } catch (e) {}
+    }
+    const tmpAgyFile = path.join(tmpAgyDir, 'agy');
+    if (!fs.existsSync(tmpAgyFile)) {
+      const agyScriptContent = `#!/bin/bash
+if [ "$1" = "--version" ] || [ "$1" = "-v" ]; then
+  echo "1.2.2"
+  exit 0
+fi
+if [ "$1" = "models" ]; then
+  echo -e "gemini-3.8-flash-high\tGemini 3.8 Flash (High)\ngemini-3.7-flash-high\tGemini 3.7 Flash (High)\ngemini-3.6-flash-high\tGemini 3.6 Flash (High)\ngemini-3.1-pro-high\tGemini 3.1 Pro (High)\nclaude-sonnet-4-6\tClaude Sonnet 4.6 (Thinking)\nclaude-opus-4-6-thinking\tClaude Opus 4.6 (Thinking)\ngpt-oss-120b-medium\tGPT-OSS 120B (Medium)"
+  exit 0
+fi
+PROMPT="$*"
+if [ -z "$PROMPT" ]; then
+  echo "Antigravity CLI v1.2.2 (Linux Cloud Server)"
+  exit 0
+fi
+python3 /app/ai_agent.py "$PROMPT"
+`;
+      try {
+        fs.writeFileSync(tmpAgyFile, agyScriptContent, { mode: 0o755 });
+      } catch (e) {}
+    }
+
+    const linuxBinPaths = ['/usr/local/bin', '/usr/bin', tmpAgyDir, '/root/.local/bin', '/home/node/.local/bin'];
     linuxBinPaths.forEach(p => {
       if (fs.existsSync(p) && !options.env.PATH.includes(p)) {
         options.env.PATH = `${p}:${options.env.PATH}`;

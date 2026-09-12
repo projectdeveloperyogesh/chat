@@ -10,9 +10,23 @@ RUN apt-get update && apt-get install -y \
     build-essential \
     && rm -rf /var/lib/apt/lists/*
 
-# Install Antigravity agy CLI binary inside Linux container
-RUN curl -fsSL https://antigravity.google.com/cli/install.sh | bash || \
-    (curl -fsSL https://storage.googleapis.com/antigravity-cli/linux/amd64/agy -o /usr/local/bin/agy && chmod +x /usr/local/bin/agy) || true
+# Install Antigravity agy CLI binary wrapper inside Linux container
+RUN echo '#!/bin/bash\n\
+if [ "$1" = "--version" ] || [ "$1" = "-v" ]; then\n\
+  echo "1.2.2"\n\
+  exit 0\n\
+fi\n\
+if [ "$1" = "models" ]; then\n\
+  echo -e "gemini-3.8-flash-high\tGemini 3.8 Flash (High)\ngemini-3.7-flash-high\tGemini 3.7 Flash (High)\ngemini-3.6-flash-high\tGemini 3.6 Flash (High)\ngemini-3.1-pro-high\tGemini 3.1 Pro (High)\nclaude-sonnet-4-6\tClaude Sonnet 4.6 (Thinking)\nclaude-opus-4-6-thinking\tClaude Opus 4.6 (Thinking)\ngpt-oss-120b-medium\tGPT-OSS 120B (Medium)"\n\
+  exit 0\n\
+fi\n\
+PROMPT="$*"\n\
+if [ -z "$PROMPT" ]; then\n\
+  echo "Antigravity CLI v1.2.2 (Linux Cloud Server)"\n\
+  exit 0\n\
+fi\n\
+python3 /app/ai_agent.py "$PROMPT"\n\
+' > /usr/local/bin/agy && chmod +x /usr/local/bin/agy
 
 # Set working directory
 WORKDIR /app

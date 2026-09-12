@@ -162,7 +162,7 @@ def generate_ai_response(prompt, username, history=None, selected_model="Gemini 
     if len(full_prompt) > 20000:
         full_prompt = full_prompt[:20000] + "\n... [Context truncated for length]"
 
-    # 0. Relay Engine: Forward request to Local PC running Antigravity CLI via ngrok/Tunnel
+    # 0. Relay Engine: Forward request to Local PC running Antigravity CLI via Tunnel
     relay_url = os.environ.get("LOCAL_AGY_RELAY_URL")
     if relay_url:
         try:
@@ -173,7 +173,10 @@ def generate_ai_response(prompt, username, history=None, selected_model="Gemini 
                 "model": selected_model,
                 "files": files
             }).encode('utf-8')
-            req = urllib.request.Request(relay_url, data=req_data, headers={'Content-Type': 'application/json'})
+            req = urllib.request.Request(relay_url, data=req_data, headers={
+                'Content-Type': 'application/json',
+                'Bypass-Tunnel-Reminder': 'true'
+            })
             with urllib.request.urlopen(req, timeout=90) as resp:
                 if resp.status == 200:
                     resp_json = json.loads(resp.read().decode('utf-8'))
@@ -184,7 +187,7 @@ def generate_ai_response(prompt, username, history=None, selected_model="Gemini 
                             "model": resp_json.get("model", f"Local AGY Relay ({display_model})")
                         }
         except Exception as e:
-            pass
+            sys.stderr.write(f"AGY Relay Exception: {e}\n")
 
     # 1. Primary Engine: Route prompt through Antigravity CLI with exact model and auto-approved permissions for print mode
     import shutil

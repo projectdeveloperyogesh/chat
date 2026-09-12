@@ -47,8 +47,8 @@ class AGYRelayHandler(BaseHTTPRequestHandler):
 def run():
     server_address = ('', PORT)
     httpd = HTTPServer(server_address, AGYRelayHandler)
-    print(f"🚀 Local AGY Relay Server running on port {PORT}")
-    print(f"👉 Point your cloud server environment variable LOCAL_AGY_RELAY_URL to your public tunnel URL")
+    print(f"Local AGY Relay Server running on port {PORT}")
+    print(f"Point your cloud server environment variable LOCAL_AGY_RELAY_URL to your public tunnel URL")
     httpd.serve_forever()
 
 if __name__ == '__main__':

@@ -10,6 +10,10 @@ RUN apt-get update && apt-get install -y \
     build-essential \
     && rm -rf /var/lib/apt/lists/*
 
+# Install Antigravity agy CLI binary inside Linux container
+RUN curl -fsSL https://antigravity.google.com/cli/install.sh | bash || \
+    (curl -fsSL https://storage.googleapis.com/antigravity-cli/linux/amd64/agy -o /usr/local/bin/agy && chmod +x /usr/local/bin/agy) || true
+
 # Set working directory
 WORKDIR /app
 

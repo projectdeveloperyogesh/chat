@@ -189,18 +189,65 @@ def generate_ai_response(prompt, username, history=None, selected_model="Gemini 
         except Exception as e:
             sys.stderr.write(f"AGY Relay Exception: {e}\n")
 
-    # 1. Primary Engine: Route prompt through Antigravity CLI with exact model and auto-approved permissions for print mode
+    # 1. Primary Engine: Google Gemini API (GEMINI_API_KEY / GOOGLE_API_KEY)
+    gemini_key = os.environ.get("GEMINI_API_KEY") or os.environ.get("GOOGLE_API_KEY") or os.environ.get("GEMINI_KEY")
+    if gemini_key:
+        # 1a. Google GenAI Official SDK
+        try:
+            from google import genai
+            client = genai.Client(api_key=gemini_key)
+            g_model = "gemini-2.0-flash"
+            if "pro" in selected_model.lower() or "opus" in selected_model.lower():
+                g_model = "gemini-1.5-pro"
+            elif "3.7" in selected_model.lower():
+                g_model = "gemini-1.5-flash"
+
+            response = client.models.generate_content(
+                model=g_model,
+                contents=full_prompt
+            )
+            if response and response.text and response.text.strip():
+                return {
+                    "success": True,
+                    "reply": response.text.strip(),
+                    "model": f"Google Gemini ({display_model})"
+                }
+        except Exception as e:
+            sys.stderr.write(f"Gemini GenAI SDK Error: {e}\n")
+
+        # 1b. Google Gemini REST API Fallback
+        try:
+            import urllib.request
+            g_model = "gemini-2.0-flash"
+            if "pro" in selected_model.lower() or "opus" in selected_model.lower():
+                g_model = "gemini-1.5-pro"
+
+            url = f"https://generativelanguage.googleapis.com/v1beta/models/{g_model}:generateContent?key={gemini_key}"
+            payload = json.dumps({
+                "contents": [{"parts": [{"text": full_prompt}]}]
+            }).encode("utf-8")
+            req = urllib.request.Request(url, data=payload, headers={"Content-Type": "application/json"})
+            with urllib.request.urlopen(req, timeout=60) as resp:
+                resp_data = json.loads(resp.read().decode("utf-8"))
+                reply_text = resp_data["candidates"][0]["content"]["parts"][0]["text"]
+                if reply_text and reply_text.strip():
+                    return {
+                        "success": True,
+                        "reply": reply_text.strip(),
+                        "model": f"Google Gemini ({display_model})"
+                    }
+        except Exception as e:
+            sys.stderr.write(f"Gemini REST API Error: {e}\n")
+
+    # 2. Native Antigravity agy CLI Binary Execution (if native binary and not wrapper script)
     import shutil
     agy_cmd = (
         shutil.which("agy") or 
         shutil.which("agy.exe") or 
         shutil.which("agy.cmd") or 
-        "/usr/local/bin/agy" or 
-        "/usr/bin/agy" or 
         r"C:\Users\111\AppData\Local\agy\bin\agy.exe"
     )
 
-    # Check if agy_cmd points to our shell script wrapper to prevent recursive subprocess loop
     is_script_wrapper = False
     if agy_cmd and os.path.exists(agy_cmd):
         try:
@@ -211,83 +258,62 @@ def generate_ai_response(prompt, username, history=None, selected_model="Gemini 
         except Exception:
             pass
 
-    if is_script_wrapper or os.environ.get("AGY_RECURSION_ACTIVE") == "1":
-        # Extract exact user prompt by stripping system/history prefixes if present
-        clean_prompt = prompt
-        if f"{username}:" in prompt:
-            clean_prompt = prompt.split(f"{username}:")[-1].strip()
-        elif "User:" in prompt:
-            clean_prompt = prompt.split("User:")[-1].strip()
-        elif "Yogesh:" in prompt:
-            clean_prompt = prompt.split("Yogesh:")[-1].strip()
+    if agy_cmd and not is_script_wrapper and os.environ.get("AGY_RECURSION_ACTIVE") != "1":
+        use_shell = False if (os.name != 'nt' or agy_cmd.lower().endswith(".exe")) else True
+        env_vars = dict(os.environ)
+        env_vars["AGY_RECURSION_ACTIVE"] = "1"
 
-        p_lower = clean_prompt.lower().strip()
-        reply_text = ""
-        
-        if any(kw in p_lower for kw in ["hello", "hi", "hey", "greetings", "good morning", "good evening"]):
-            reply_text = f"Hello {username}! 👋 I am Yogesh Chat AI powered by **{display_model}**. How can I help you today with coding, analysis, weather, or general questions?"
-        elif "temperature" in p_lower or "weather" in p_lower or "temp" in p_lower:
-            loc = "Jodhpur, Rajasthan" if "jodhpur" in p_lower else ("New Delhi" if "delhi" in p_lower else ("Mumbai" if "mumbai" in p_lower else ("Bengaluru" if "bangalore" in p_lower else "your current area")))
-            reply_text = f"### 🌤️ Weather Forecast for {loc}\n- **User Query**: *\"{clean_prompt}\"*\n- **Condition**: Clear Sky / Sunny\n- **Temperature**: ~32°C (89.6°F)\n- **Humidity**: 42%\n- **Wind**: 14 km/h (NE)\n\n*Live weather data stream updated for {loc}.*"
-        elif any(kw in p_lower for kw in ["code", "python", "javascript", "function", "write", "script", "algorithm", "html", "css", "sql", "bug", "program", "add"]):
-            reply_text = f"### 💻 Code Solution ({display_model})\n\nHere is a solution for: **\"{clean_prompt}\"**\n\n```python\n# Solution generated by Yogesh AI ({display_model})\ndef solve_task(a, b):\n    \"\"\"\n    Task: {clean_prompt}\n    \"\"\"\n    return a + b\n\nif __name__ == '__main__':\n    print(\"Result:\", solve_task(10, 20))\n```"
-        else:
-            reply_text = f"### 🤖 Antigravity AI Response ({display_model})\n\nI have received your prompt: **\"{clean_prompt}\"**.\n\nEverything is working smoothly on your server. Let me know if you need code generation, text summaries, file analysis, or further assistance!"
+        try:
+            cmd = [agy_cmd, "--dangerously-skip-permissions", "--model", target_cli_model, "--print", full_prompt]
+            result = subprocess.run(cmd, capture_output=True, text=True, timeout=120, encoding="utf-8", shell=use_shell, env=env_vars)
+            if result.returncode == 0 and result.stdout.strip():
+                return {
+                    "success": True,
+                    "reply": result.stdout.strip(),
+                    "model": f"Antigravity CLI ({display_model})"
+                }
+        except Exception as err:
+            sys.stderr.write(f"AGY Model Exception: {err}\n")
 
-        return {
-            "success": True,
-            "reply": reply_text,
-            "model": f"Antigravity CLI ({display_model})"
-        }
-
-    use_shell = False if (os.name != 'nt' or agy_cmd.lower().endswith(".exe")) else True
-    env_vars = dict(os.environ)
-    env_vars["AGY_RECURSION_ACTIVE"] = "1"
-
+    # 3. Standalone Dynamic LLM Provider Engine (g4f / Free LLM Inference)
     try:
-        cmd = [agy_cmd, "--dangerously-skip-permissions", "--model", target_cli_model, "--print", full_prompt]
-        result = subprocess.run(cmd, capture_output=True, text=True, timeout=120, encoding="utf-8", shell=use_shell, env=env_vars)
-        if result.returncode == 0 and result.stdout.strip():
-            return {
-                "success": True,
-                "reply": result.stdout.strip(),
-                "model": f"Antigravity CLI ({display_model})"
-            }
-        elif result.stderr.strip():
-            sys.stderr.write(f"AGY CLI Model Error: {result.stderr.strip()}\n")
-    except Exception as err:
-        sys.stderr.write(f"AGY Model Exception: {err}\n")
+        import g4f
+        providers = [
+            getattr(g4f.Provider, "OpenaiChat", None),
+            getattr(g4f.Provider, "Copilot", None),
+            getattr(g4f.Provider, "Qwen", None),
+            getattr(g4f.Provider, "BlackboxPro", None),
+        ]
+        for p in providers:
+            if not p:
+                continue
+            try:
+                res = g4f.ChatCompletion.create(
+                    model="gpt-4o",
+                    provider=p,
+                    messages=[{"role": "user", "content": full_prompt}]
+                )
+                if res and str(res).strip() and len(str(res).strip()) > 10:
+                    p_name = getattr(p, "__name__", "LLM Provider")
+                    return {
+                        "success": True,
+                        "reply": str(res).strip(),
+                        "model": f"Antigravity Cloud AI ({p_name})"
+                    }
+            except Exception:
+                continue
+    except Exception as e:
+        sys.stderr.write(f"Dynamic LLM Provider Exception: {e}\n")
 
-    # 1b. Fallback with model display name if CLI ID failed
-    try:
-        cmd_disp = [agy_cmd, "--dangerously-skip-permissions", "--model", display_model, "--print", full_prompt]
-        result_disp = subprocess.run(cmd_disp, capture_output=True, text=True, timeout=120, encoding="utf-8", shell=use_shell, env=env_vars)
-        if result_disp.returncode == 0 and result_disp.stdout.strip():
-            return {
-                "success": True,
-                "reply": result_disp.stdout.strip(),
-                "model": f"Antigravity CLI ({display_model})"
-            }
-    except Exception as err:
-        sys.stderr.write(f"AGY Display Model Exception: {err}\n")
-
-    # 1c. System Default agy fallback (without --model flag)
-    try:
-        cmd_def = [agy_cmd, "--dangerously-skip-permissions", "--print", full_prompt]
-        result_def = subprocess.run(cmd_def, capture_output=True, text=True, timeout=120, encoding="utf-8", shell=use_shell, env=env_vars)
-        if result_def.returncode == 0 and result_def.stdout.strip():
-            return {
-                "success": True,
-                "reply": result_def.stdout.strip(),
-                "model": "Antigravity CLI (Default Model)"
-            }
-    except Exception as err:
-        sys.stderr.write(f"AGY Default Exception: {err}\n")
+    # 4. Clear guidance if no API key or provider is reachable
+    clean_prompt = prompt
+    if f"{username}:" in prompt:
+        clean_prompt = prompt.split(f"{username}:")[-1].strip()
 
     return {
         "success": True,
-        "reply": f"Hello {username}! I am Yogesh Chat AI powered by Antigravity CLI. Your prompt was: '{prompt}'. Ask me any question, coding task, or upload documents/audio files for analysis!",
-        "model": "Antigravity CLI (Gemini 3.8 Flash)"
+        "reply": f"### 🤖 Antigravity Cloud AI Response ({display_model})\n\n**Received Query**: *\"{clean_prompt}\"*\n\n> 💡 **Tip to unlock full Google Gemini 2.0 Flash / Pro capabilities on Render**:\n> Please set the `GEMINI_API_KEY` environment variable in your Render service settings (`https://dashboard.render.com`). You can obtain a free API key instantly at [Google AI Studio](https://aistudio.google.com/app/apikey).",
+        "model": f"Antigravity Engine ({display_model})"
     }
 
 def main():

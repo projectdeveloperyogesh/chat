@@ -581,23 +581,27 @@ app.post('/api/v1/terminal/exec', (req, res) => {
 
   if (os.platform() === 'win32') {
     const agyWinPath = 'C:\\Users\\111\\AppData\\Local\\agy\\bin';
-    if (!options.env.PATH.includes(agyWinPath)) {
-      options.env.PATH = `${agyWinPath};${options.env.PATH}`;
-    }
+    options.env.PATH = `${agyWinPath};${options.env.PATH || ''}`;
   } else {
     const tmpAgyDir = '/tmp/bin';
-    if (!fs.existsSync(tmpAgyDir)) {
-      try { fs.mkdirSync(tmpAgyDir, { recursive: true }); } catch (e) {}
-    }
-    const tmpAgyFile = path.join(tmpAgyDir, 'agy');
-    if (!fs.existsSync(tmpAgyFile)) {
+    try {
+      if (!fs.existsSync(tmpAgyDir)) {
+        fs.mkdirSync(tmpAgyDir, { recursive: true });
+      }
+      const tmpAgyFile = path.join(tmpAgyDir, 'agy');
       const agyScriptContent = `#!/bin/bash
 if [ "$1" = "--version" ] || [ "$1" = "-v" ]; then
   echo "1.2.2"
   exit 0
 fi
 if [ "$1" = "models" ]; then
-  echo -e "gemini-3.8-flash-high\tGemini 3.8 Flash (High)\ngemini-3.7-flash-high\tGemini 3.7 Flash (High)\ngemini-3.6-flash-high\tGemini 3.6 Flash (High)\ngemini-3.1-pro-high\tGemini 3.1 Pro (High)\nclaude-sonnet-4-6\tClaude Sonnet 4.6 (Thinking)\nclaude-opus-4-6-thinking\tClaude Opus 4.6 (Thinking)\ngpt-oss-120b-medium\tGPT-OSS 120B (Medium)"
+  echo "gemini-3.8-flash-high\tGemini 3.8 Flash (High)"
+  echo "gemini-3.7-flash-high\tGemini 3.7 Flash (High)"
+  echo "gemini-3.6-flash-high\tGemini 3.6 Flash (High)"
+  echo "gemini-3.1-pro-high\tGemini 3.1 Pro (High)"
+  echo "claude-sonnet-4-6\tClaude Sonnet 4.6 (Thinking)"
+  echo "claude-opus-4-6-thinking\tClaude Opus 4.6 (Thinking)"
+  echo "gpt-oss-120b-medium\tGPT-OSS 120B (Medium)"
   exit 0
 fi
 PROMPT="$*"
@@ -607,17 +611,11 @@ if [ -z "$PROMPT" ]; then
 fi
 python3 /app/ai_agent.py "$PROMPT"
 `;
-      try {
-        fs.writeFileSync(tmpAgyFile, agyScriptContent, { mode: 0o755 });
-      } catch (e) {}
-    }
+      fs.writeFileSync(tmpAgyFile, agyScriptContent, { mode: 0o755 });
+      fs.chmodSync(tmpAgyFile, 0o755);
+    } catch (e) {}
 
-    const linuxBinPaths = ['/usr/local/bin', '/usr/bin', tmpAgyDir, '/root/.local/bin', '/home/node/.local/bin'];
-    linuxBinPaths.forEach(p => {
-      if (fs.existsSync(p) && !options.env.PATH.includes(p)) {
-        options.env.PATH = `${p}:${options.env.PATH}`;
-      }
-    });
+    options.env.PATH = `/tmp/bin:/usr/local/bin:/usr/bin:/bin:/root/.local/bin:/home/node/.local/bin:${options.env.PATH || ''}`;
   }
 
   const { exec } = require('child_process');

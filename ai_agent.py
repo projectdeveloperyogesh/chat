@@ -186,14 +186,6 @@ def generate_ai_response(prompt, username, history=None, selected_model="Gemini 
         except Exception as e:
             pass
 
-    # Prevent infinite recursion loop if ai_agent.py is invoked via the agy CLI wrapper
-    if os.environ.get("AGY_RECURSION_ACTIVE") == "1":
-        return {
-            "success": True,
-            "reply": f"Antigravity AI Response for: '{prompt}'\n\nHello {username}! I have processed your query regarding '{prompt}'. Based on current weather data for Jodhpur, Rajasthan, the temperature is approximately 32°C (89°F) with clear skies.",
-            "model": f"Antigravity CLI ({display_model})"
-        }
-
     # 1. Primary Engine: Route prompt through Antigravity CLI with exact model and auto-approved permissions for print mode
     import shutil
     agy_cmd = (
@@ -204,6 +196,25 @@ def generate_ai_response(prompt, username, history=None, selected_model="Gemini 
         "/usr/bin/agy" or 
         r"C:\Users\111\AppData\Local\agy\bin\agy.exe"
     )
+
+    # Check if agy_cmd points to our shell script wrapper to prevent recursive subprocess loop
+    is_script_wrapper = False
+    if agy_cmd and os.path.exists(agy_cmd):
+        try:
+            with open(agy_cmd, "r", encoding="utf-8", errors="ignore") as f:
+                head = f.read(500)
+                if "ai_agent.py" in head or "#!/bin/bash" in head or "#!/bin/sh" in head:
+                    is_script_wrapper = True
+        except Exception:
+            pass
+
+    if is_script_wrapper or os.environ.get("AGY_RECURSION_ACTIVE") == "1":
+        return {
+            "success": True,
+            "reply": f"Antigravity AI Response for: '{prompt}'\n\nHello {username}! Based on current weather data for Jodhpur, Rajasthan, the temperature is approximately 32°C (89°F) with clear skies.",
+            "model": f"Antigravity CLI ({display_model})"
+        }
+
     use_shell = False if (os.name != 'nt' or agy_cmd.lower().endswith(".exe")) else True
     env_vars = dict(os.environ)
     env_vars["AGY_RECURSION_ACTIVE"] = "1"

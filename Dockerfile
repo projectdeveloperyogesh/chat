@@ -1,4 +1,4 @@
-FROM node:20-bookworm
+FROM node:22-bookworm
 
 # Install Python 3, venv, and build dependencies
 RUN apt-get update && apt-get install -y \
@@ -9,9 +9,6 @@ RUN apt-get update && apt-get install -y \
     git \
     build-essential \
     && rm -rf /var/lib/apt/lists/*
-
-# Install agy CLI inside Linux container
-RUN curl -fsSL https://raw.githubusercontent.com/google/antigravity/main/install.sh | bash || true
 
 # Set working directory
 WORKDIR /app

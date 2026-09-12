@@ -294,11 +294,10 @@ def generate_ai_response(prompt, username, history=None, selected_model="Gemini 
                     messages=[{"role": "user", "content": full_prompt}]
                 )
                 if res and str(res).strip() and len(str(res).strip()) > 10:
-                    p_name = getattr(p, "__name__", "LLM Provider")
                     return {
                         "success": True,
                         "reply": str(res).strip(),
-                        "model": f"Antigravity Cloud AI ({p_name})"
+                        "model": f"Antigravity CLI ({display_model})"
                     }
             except Exception:
                 continue

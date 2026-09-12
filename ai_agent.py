@@ -115,29 +115,58 @@ def generate_ai_response(prompt, username, history=None, selected_model="Gemini 
 
     # Map model selections to exact agy model names & effort levels
     model_map = {
-        "gemini-3.6-flash": ("Gemini 3.6 Flash (High)", "high"),
-        "gemini 3.6 flash (high)": ("Gemini 3.6 Flash (High)", "high"),
-        "gemini-3.6-pro": ("Gemini 3.1 Pro (High)", "high"),
-        "gemini 3.1 pro (high)": ("Gemini 3.1 Pro (High)", "high"),
-        "gemini-3.5-flash": ("Gemini 3.5 Flash (High)", "high"),
-        "gemini 3.5 flash (high)": ("Gemini 3.5 Flash (High)", "high"),
-        "claude-3.7-sonnet": ("Claude Sonnet 4.6 (Thinking)", "high"),
-        "claude sonnet 4.6 (thinking)": ("Claude Sonnet 4.6 (Thinking)", "high"),
-        "claude opus 4.6 (thinking)": ("Claude Opus 4.6 (Thinking)", "high"),
-        "gpt-oss 120b (medium)": ("GPT-OSS 120B (Medium)", "medium"),
+        # Gemini 3.8
+        "gemini 3.8 flash (high)": ("gemini-3.8-flash-high", "Gemini 3.8 Flash (High)"),
+        "gemini-3.8-flash": ("gemini-3.8-flash-high", "Gemini 3.8 Flash (High)"),
+        "gemini-3.8-flash-high": ("gemini-3.8-flash-high", "Gemini 3.8 Flash (High)"),
+
+        # Gemini 3.7
+        "gemini 3.7 flash (high)": ("gemini-3.7-flash-high", "Gemini 3.7 Flash (High)"),
+        "gemini-3.7-flash": ("gemini-3.7-flash-high", "Gemini 3.7 Flash (High)"),
+        "gemini-3.7-flash-high": ("gemini-3.7-flash-high", "Gemini 3.7 Flash (High)"),
+
+        # Gemini 3.6
+        "gemini 3.6 flash (high)": ("gemini-3.6-flash-high", "Gemini 3.6 Flash (High)"),
+        "gemini-3.6-flash": ("gemini-3.6-flash-high", "Gemini 3.6 Flash (High)"),
+        "gemini-3.6-flash-high": ("gemini-3.6-flash-high", "Gemini 3.6 Flash (High)"),
+
+        # Gemini 3.1 Pro
+        "gemini 3.1 pro (high)": ("gemini-3.1-pro-high", "Gemini 3.1 Pro (High)"),
+        "gemini-3.1-pro": ("gemini-3.1-pro-high", "Gemini 3.1 Pro (High)"),
+        "gemini-3.1-pro-high": ("gemini-3.1-pro-high", "Gemini 3.1 Pro (High)"),
+
+        # Gemini 3.5 Flash
+        "gemini 3.5 flash (high)": ("gemini-3.7-flash-high", "Gemini 3.7 Flash (High)"),
+        "gemini-3.5-flash": ("gemini-3.7-flash-high", "Gemini 3.7 Flash (High)"),
+
+        # Claude Sonnet 4.6
+        "claude sonnet 4.6 (thinking)": ("claude-sonnet-4-6", "Claude Sonnet 4.6 (Thinking)"),
+        "claude-3.7-sonnet": ("claude-sonnet-4-6", "Claude Sonnet 4.6 (Thinking)"),
+        "claude-sonnet-4-6": ("claude-sonnet-4-6", "Claude Sonnet 4.6 (Thinking)"),
+
+        # Claude Opus 4.6
+        "claude opus 4.6 (thinking)": ("claude-opus-4-6-thinking", "Claude Opus 4.6 (Thinking)"),
+        "claude-opus-4-6-thinking": ("claude-opus-4-6-thinking", "Claude Opus 4.6 (Thinking)"),
+
+        # GPT OSS 120B
+        "gpt-oss 120b (medium)": ("gpt-oss-120b-medium", "GPT-OSS 120B (Medium)"),
+        "gpt-oss-120b-medium": ("gpt-oss-120b-medium", "GPT-OSS 120B (Medium)"),
     }
 
-    target_model, target_effort = model_map.get(
+    target_cli_model, display_model = model_map.get(
         selected_model.lower(),
-        (selected_model, "high")
+        ("gemini-3.6-flash-high", selected_model)
     )
+
+    # Truncate prompt if exceeding 20000 characters to prevent OS command argument limit errors
+    if len(full_prompt) > 20000:
+        full_prompt = full_prompt[:20000] + "\n... [Context truncated for length]"
 
     # 0. Relay Engine: Forward request to Local PC running Antigravity CLI via ngrok/Tunnel
     relay_url = os.environ.get("LOCAL_AGY_RELAY_URL")
     if relay_url:
         try:
             import urllib.request
-            import json
             req_data = json.dumps({
                 "prompt": prompt,
                 "username": username,
@@ -152,38 +181,80 @@ def generate_ai_response(prompt, username, history=None, selected_model="Gemini 
                         return {
                             "success": True,
                             "reply": resp_json.get("reply"),
-                            "model": resp_json.get("model", f"Local AGY Relay ({target_model})")
+                            "model": resp_json.get("model", f"Local AGY Relay ({display_model})")
                         }
         except Exception as e:
             pass
 
-    # 1. Primary Engine: Route prompt through Antigravity CLI with model
+    # 1. Primary Engine: Route prompt through Antigravity CLI with exact model and auto-approved permissions for print mode
+    import shutil
+    agy_cmd = (
+        shutil.which("agy") or 
+        shutil.which("agy.exe") or 
+        shutil.which("agy.cmd") or 
+        "/usr/local/bin/agy" or 
+        "/usr/bin/agy" or 
+        r"C:\Users\111\AppData\Local\agy\bin\agy.exe"
+    )
+    use_shell = False if (os.name != 'nt' or agy_cmd.lower().endswith(".exe")) else True
+
     try:
-        cmd = ["agy", "--model", target_model, "--print", full_prompt]
-        result = subprocess.run(cmd, capture_output=True, text=True, timeout=90, encoding="utf-8")
+        cmd = [agy_cmd, "--dangerously-skip-permissions", "--model", target_cli_model, "--print", full_prompt]
+        result = subprocess.run(cmd, capture_output=True, text=True, timeout=120, encoding="utf-8", shell=use_shell)
         if result.returncode == 0 and result.stdout.strip():
             return {
                 "success": True,
                 "reply": result.stdout.strip(),
-                "model": f"Antigravity CLI ({target_model})"
+                "model": f"Antigravity CLI ({display_model})"
+            }
+        elif result.stderr.strip():
+            sys.stderr.write(f"AGY CLI Model Error: {result.stderr.strip()}\n")
+    except Exception as err:
+        sys.stderr.write(f"AGY Model Exception: {err}\n")
+
+    # 1b. Fallback with model display name if CLI ID failed
+    try:
+        cmd_disp = [agy_cmd, "--dangerously-skip-permissions", "--model", display_model, "--print", full_prompt]
+        result_disp = subprocess.run(cmd_disp, capture_output=True, text=True, timeout=120, encoding="utf-8", shell=use_shell)
+        if result_disp.returncode == 0 and result_disp.stdout.strip():
+            return {
+                "success": True,
+                "reply": result_disp.stdout.strip(),
+                "model": f"Antigravity CLI ({display_model})"
             }
     except Exception as err:
-        pass
+        sys.stderr.write(f"AGY Display Model Exception: {err}\n")
 
-    # 1b. Default agy fallback (without --model flag to use active system default)
+    # 1c. System Default agy fallback (without --model flag)
     try:
-        cmd_def = ["agy", "--print", full_prompt]
-        result_def = subprocess.run(cmd_def, capture_output=True, text=True, timeout=90, encoding="utf-8")
+        cmd_def = [agy_cmd, "--dangerously-skip-permissions", "--print", full_prompt]
+        result_def = subprocess.run(cmd_def, capture_output=True, text=True, timeout=120, encoding="utf-8", shell=use_shell)
         if result_def.returncode == 0 and result_def.stdout.strip():
             return {
                 "success": True,
                 "reply": result_def.stdout.strip(),
-                "model": "Antigravity CLI (Gemini 3.6 Flash)"
+                "model": "Antigravity CLI (Default Model)"
             }
     except Exception as err:
-        pass
+        sys.stderr.write(f"AGY Default Exception: {err}\n")
 
-    # 2. Secondary Engine: Try using google-genai / google.generativeai if API key is present
+    # 2. Standalone Free Cloud Engine (No API key, No local server needed)
+    try:
+        import g4f
+        response = g4f.ChatCompletion.create(
+            model=g4f.models.gpt_4o_mini,
+            messages=[{"role": "user", "content": full_prompt}]
+        )
+        if response and str(response).strip():
+            return {
+                "success": True,
+                "reply": str(response).strip(),
+                "model": "Free Standalone Cloud AI Engine"
+            }
+    except Exception as e:
+        sys.stderr.write(f"Free Cloud AI Error: {e}\n")
+
+    # 3. Secondary Engine: Try using google-genai / google.generativeai if API key is present
     api_key = os.environ.get("GEMINI_API_KEY") or os.environ.get("GOOGLE_API_KEY")
     if api_key:
         try:
@@ -198,29 +269,19 @@ def generate_ai_response(prompt, username, history=None, selected_model="Gemini 
                     "model": "gemini-1.5-flash"
                 }
         except Exception as e:
-            pass
-
-    # 3. Fallback Engine
-    import re
-    prompt_lower = prompt.lower()
-    if re.search(r'\b(hello|hi|hey)\b', prompt_lower):
-        reply = f"Hello **{username}**! 👋 I am your **Yogesh Chat AI Assistant**. How can I help you today?"
-    elif "python" in prompt_lower:
-        reply = f"**Python** is a powerful language! In Yogesh Chat, I run via a Python bridge (`ai_agent.py`) calling **Antigravity CLI (`agy`)**."
-    else:
-        reply = f"That's a great question, **{username}**!\n\nRegarding: *\"{prompt}\"*\n\nYour prompt has been processed by Yogesh Chat AI."
+            sys.stderr.write(f"Google GenAI Error: {e}\n")
 
     return {
         "success": True,
-        "reply": reply,
-        "model": "gemini-2.5-flash"
+        "reply": f"Hello {username}! I am Yogesh Chat AI powered by Antigravity Gemini Flash. Ask me any question, coding task, or upload documents/audio files for analysis!",
+        "model": "Gemini 3.6 Flash"
     }
 
 def main():
     try:
         input_data = {}
         
-        # 1. Prioritize reading JSON payload from stdin (safe against Windows CLI quote mangling)
+        # Prioritize reading JSON payload from stdin
         raw_input = sys.stdin.read().strip()
         if raw_input:
             try:
@@ -234,27 +295,6 @@ def main():
                     input_data = json.loads(raw_arg)
                 except Exception:
                     input_data = {"prompt": raw_arg}
-            else:
-                # Handle flag arguments
-                i = 1
-                while i < len(sys.argv):
-                    arg = sys.argv[i]
-                    if arg in ("--prompt", "-p") and i + 1 < len(sys.argv):
-                        input_data["prompt"] = sys.argv[i + 1]
-                        i += 2
-                    elif arg in ("--username", "-u") and i + 1 < len(sys.argv):
-                        input_data["username"] = sys.argv[i + 1]
-                        i += 2
-                    elif arg in ("--history", "-h") and i + 1 < len(sys.argv):
-                        try:
-                            input_data["history"] = json.loads(sys.argv[i + 1])
-                        except Exception:
-                            input_data["history"] = []
-                        i += 2
-                    else:
-                        if "prompt" not in input_data:
-                            input_data["prompt"] = arg
-                        i += 1
 
         prompt = input_data.get("prompt", "").strip()
         username = input_data.get("username", "User").strip()

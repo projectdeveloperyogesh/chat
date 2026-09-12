@@ -10,6 +10,9 @@ RUN apt-get update && apt-get install -y \
     build-essential \
     && rm -rf /var/lib/apt/lists/*
 
+# Install agy CLI inside Linux container
+RUN curl -fsSL https://raw.githubusercontent.com/google/antigravity/main/install.sh | bash || true
+
 # Set working directory
 WORKDIR /app
 
@@ -20,7 +23,7 @@ RUN npm install --production
 # Create Python virtual environment and install Python packages
 RUN python3 -m venv .venv
 RUN .venv/bin/pip install --upgrade pip
-RUN .venv/bin/pip install SpeechRecognition pydub imageio-ffmpeg pypdf python-docx
+RUN .venv/bin/pip install SpeechRecognition pydub imageio-ffmpeg pypdf python-docx g4f curl_cffi
 
 # Copy application source code
 COPY . .

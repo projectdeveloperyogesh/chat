@@ -273,18 +273,134 @@
       background: rgba(255, 255, 255, 0.2);
     }
 
-    /* Responsive */
+    /* Mobile Responsive Header & Drawer */
+    .mobile-nav-bar {
+      display: none;
+    }
+
+    .sidebar-overlay {
+      display: none;
+    }
+
     @media (max-width: 900px) {
-      body { flex-direction: column; }
-      .docs-sidebar { width: 100%; position: relative; height: auto; }
-      .docs-content { margin-left: 0; padding: 24px; }
+      body {
+        flex-direction: column;
+      }
+
+      .mobile-nav-bar {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 60px;
+        background: #0f1523;
+        border-bottom: 1px solid var(--border-color);
+        padding: 0 16px;
+        z-index: 1000;
+      }
+
+      .mobile-brand {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        font-family: var(--font-heading);
+        font-size: 16px;
+        font-weight: 700;
+        color: #fff;
+      }
+
+      .mobile-toggle-btn {
+        background: rgba(255, 255, 255, 0.08);
+        border: 1px solid var(--border-color);
+        color: #fff;
+        width: 38px;
+        height: 38px;
+        border-radius: 8px;
+        font-size: 18px;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+
+      .docs-sidebar {
+        position: fixed;
+        top: 60px;
+        left: 0;
+        bottom: 0;
+        width: 280px;
+        z-index: 999;
+        transform: translateX(-100%);
+        transition: transform 0.3s ease;
+        box-shadow: 10px 0 30px rgba(0, 0, 0, 0.6);
+        background: #0f1523;
+      }
+
+      .docs-sidebar.active {
+        transform: translateX(0);
+      }
+
+      .sidebar-overlay {
+        position: fixed;
+        top: 60px;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(4, 7, 13, 0.75);
+        backdrop-filter: blur(4px);
+        z-index: 998;
+        display: none;
+      }
+
+      .sidebar-overlay.active {
+        display: block;
+      }
+
+      .docs-content {
+        margin-left: 0;
+        padding: 80px 16px 40px 16px;
+        width: 100%;
+      }
+
+      .header-banner {
+        padding: 18px;
+      }
+
+      .header-banner h2 {
+        font-size: 20px;
+      }
+
+      .endpoint-block {
+        padding: 16px;
+      }
+
+      .code-content pre {
+        font-size: 11px;
+        overflow-x: auto;
+      }
     }
   </style>
 </head>
 <body>
 
+  <!-- Mobile Top Bar -->
+  <header class="mobile-nav-bar">
+    <div class="mobile-brand">
+      <div class="brand-logo" style="width: 30px; height: 30px; font-size: 14px;"><i class="fa-solid fa-code"></i></div>
+      <span>Yogesh Chat API Docs</span>
+    </div>
+    <button id="docs-mobile-toggle" class="mobile-toggle-btn" title="Toggle Navigation Menu">
+      <i class="fa-solid fa-bars"></i>
+    </button>
+  </header>
+
+  <div id="docs-sidebar-overlay" class="sidebar-overlay"></div>
+
   <!-- Navigation Sidebar -->
-  <aside class="docs-sidebar">
+  <aside id="docs-sidebar" class="docs-sidebar">
     <div class="brand-header">
       <div class="brand-logo"><i class="fa-solid fa-code"></i></div>
       <div>
@@ -627,6 +743,33 @@
   </main>
 
   <script>
+    // Mobile Sidebar Drawer Toggle
+    const toggleBtn = document.getElementById('docs-mobile-toggle');
+    const sidebar = document.getElementById('docs-sidebar');
+    const overlay = document.getElementById('docs-sidebar-overlay');
+
+    function closeDocsSidebar() {
+      if (sidebar && overlay) {
+        sidebar.classList.remove('active');
+        overlay.classList.remove('active');
+      }
+    }
+
+    if (toggleBtn) {
+      toggleBtn.addEventListener('click', () => {
+        sidebar.classList.toggle('active');
+        overlay.classList.toggle('active');
+      });
+    }
+
+    if (overlay) {
+      overlay.addEventListener('click', closeDocsSidebar);
+    }
+
+    document.querySelectorAll('.nav-link').forEach(link => {
+      link.addEventListener('click', closeDocsSidebar);
+    });
+
     // Copy code snippet to clipboard
     document.querySelectorAll('.copy-btn').forEach(btn => {
       btn.addEventListener('click', () => {

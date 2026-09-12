@@ -100,18 +100,7 @@
         </ul>
       </div>
 
-      <!-- Quick Upload Drop Zone -->
-      <div class="sidebar-section upload-section">
-        <div class="section-title">
-          <span>Quick Share</span>
-        </div>
-        <div id="drop-zone" class="drop-zone">
-          <i class="fa-solid fa-cloud-arrow-up drop-icon"></i>
-          <p class="drop-text">Drag & drop files here</p>
-          <span class="drop-subtext">or click to browse</span>
-          <input type="file" id="sidebar-file-input" multiple style="display: none;">
-        </div>
-      </div>
+
 
       <!-- Sidebar Footer API Docs & Logs Links -->
       <div class="sidebar-section api-docs-section" style="display: flex; flex-direction: column; gap: 6px;">
@@ -145,19 +134,20 @@
           <div id="ai-model-wrapper" class="model-selector-wrapper">
             <i class="fa-solid fa-microchip model-icon"></i>
             <select id="ai-model-select" class="ai-model-select" title="Select AI Engine Model">
+              <option value="Gemini 3.8 Flash (High)">Gemini 3.8 Flash (High)</option>
+              <option value="Gemini 3.7 Flash (High)">Gemini 3.7 Flash (High)</option>
               <option value="Gemini 3.6 Flash (High)">Gemini 3.6 Flash (High)</option>
               <option value="Gemini 3.1 Pro (High)">Gemini 3.1 Pro (High)</option>
-              <option value="Gemini 3.5 Flash (High)">Gemini 3.5 Flash (High)</option>
               <option value="Claude Sonnet 4.6 (Thinking)">Claude Sonnet 4.6</option>
               <option value="Claude Opus 4.6 (Thinking)">Claude Opus 4.6</option>
               <option value="GPT-OSS 120B (Medium)">GPT-OSS 120B</option>
             </select>
           </div>
           <button id="new-ai-session-btn" class="primary-btn sm" title="Start a fresh AI conversation session">
-            <i class="fa-solid fa-plus"></i> New Thread
+            <i class="fa-solid fa-plus"></i> <span class="btn-text">New Thread</span>
           </button>
           <button id="clear-current-chat-btn" class="danger-btn sm" title="Clear Messages in Current Channel">
-            <i class="fa-solid fa-trash-can"></i> Clear Chat
+            <i class="fa-solid fa-trash-can"></i> <span class="btn-text">Clear Chat</span>
           </button>
           <div class="user-avatars-stack" id="header-avatars">
             <!-- Avatars stack -->
@@ -208,7 +198,7 @@
           </div>
         </div>
 
-        <form id="chat-form" class="chat-input-form">
+        <form id="chat-form" class="chat-input-form" onsubmit="return false;">
           <button type="button" id="attach-btn" class="action-btn" title="Attach Files">
             <i class="fa-solid fa-paperclip"></i>
             <input type="file" id="chat-file-input" multiple style="display: none;">

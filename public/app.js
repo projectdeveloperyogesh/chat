@@ -186,6 +186,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     renderChannelMessages();
+    closeMobileSidebar();
   }
 
   function createNewAiSession() {
@@ -273,20 +274,27 @@ document.addEventListener('DOMContentLoaded', () => {
   // Sidebar Mobile Toggle
   // --------------------------------------------------
 
-  openSidebarBtn.addEventListener('click', () => {
-    sidebar.classList.add('active');
-    sidebarOverlay.classList.add('active');
-  });
+  function closeMobileSidebar() {
+    if (sidebar && sidebarOverlay) {
+      sidebar.classList.remove('active');
+      sidebarOverlay.classList.remove('active');
+    }
+  }
 
-  closeSidebarBtn.addEventListener('click', () => {
-    sidebar.classList.remove('active');
-    sidebarOverlay.classList.remove('active');
-  });
+  if (openSidebarBtn) {
+    openSidebarBtn.addEventListener('click', () => {
+      sidebar.classList.add('active');
+      sidebarOverlay.classList.add('active');
+    });
+  }
 
-  sidebarOverlay.addEventListener('click', () => {
-    sidebar.classList.remove('active');
-    sidebarOverlay.classList.remove('active');
-  });
+  if (closeSidebarBtn) {
+    closeSidebarBtn.addEventListener('click', closeMobileSidebar);
+  }
+
+  if (sidebarOverlay) {
+    sidebarOverlay.addEventListener('click', closeMobileSidebar);
+  }
 
   // --------------------------------------------------
   // Auto Join Flow (Direct Open)
@@ -302,14 +310,19 @@ document.addEventListener('DOMContentLoaded', () => {
           myAvatar.textContent = currentUser.username.charAt(0);
           myAvatar.style.backgroundColor = currentUser.color;
         }
-        chatMessageInput.focus();
         socket.emit('ai:session:list');
         renderChannelMessages();
       }
     });
   }
 
-  initAutoJoin();
+  socket.on('connect', () => {
+    initAutoJoin();
+  });
+
+  if (socket.connected) {
+    initAutoJoin();
+  }
 
   // --------------------------------------------------
   // File Upload & Staging
@@ -363,30 +376,32 @@ document.addEventListener('DOMContentLoaded', () => {
   attachBtn.addEventListener('click', () => chatFileInput.click());
   chatFileInput.addEventListener('change', (e) => handleFileSelect(e.target.files));
 
-  dropZone.addEventListener('click', () => sidebarFileInput.click());
-  sidebarFileInput.addEventListener('change', (e) => handleFileSelect(e.target.files));
+  if (dropZone && sidebarFileInput) {
+    dropZone.addEventListener('click', () => sidebarFileInput.click());
+    sidebarFileInput.addEventListener('change', (e) => handleFileSelect(e.target.files));
 
-  // Drag & Drop event listeners on Drop Zone
-  ['dragenter', 'dragover'].forEach(eventName => {
-    dropZone.addEventListener(eventName, (e) => {
-      e.preventDefault();
-      dropZone.classList.add('dragover');
+    // Drag & Drop event listeners on Drop Zone
+    ['dragenter', 'dragover'].forEach(eventName => {
+      dropZone.addEventListener(eventName, (e) => {
+        e.preventDefault();
+        dropZone.classList.add('dragover');
+      });
     });
-  });
 
-  ['dragleave', 'drop'].forEach(eventName => {
-    dropZone.addEventListener(eventName, (e) => {
-      e.preventDefault();
-      dropZone.classList.remove('dragover');
+    ['dragleave', 'drop'].forEach(eventName => {
+      dropZone.addEventListener(eventName, (e) => {
+        e.preventDefault();
+        dropZone.classList.remove('dragover');
+      });
     });
-  });
 
-  dropZone.addEventListener('drop', (e) => {
-    const dt = e.dataTransfer;
-    if (dt.files && dt.files.length > 0) {
-      handleFileSelect(dt.files);
-    }
-  });
+    dropZone.addEventListener('drop', (e) => {
+      const dt = e.dataTransfer;
+      if (dt.files && dt.files.length > 0) {
+        handleFileSelect(dt.files);
+      }
+    });
+  }
 
   // Global Drag & Drop into Chat Window
   document.addEventListener('dragover', (e) => e.preventDefault());
@@ -534,12 +549,14 @@ document.addEventListener('DOMContentLoaded', () => {
   // Chat Form Submission
   // --------------------------------------------------
 
-  chatForm.addEventListener('submit', async (e) => {
-    e.preventDefault();
+  async function submitChatMessage() {
     const text = chatMessageInput.value.trim();
     const hasFiles = stagedFiles.length > 0;
 
     if (!text && !hasFiles) return;
+
+    // Reset input immediately for responsive UX
+    chatMessageInput.value = '';
 
     if (activeChannel === 'ai') {
       let uploadedFiles = [];
@@ -549,7 +566,6 @@ document.addEventListener('DOMContentLoaded', () => {
         renderStagedFiles();
       }
       socket.emit('ai:send', { text, sessionId: aiSessionId, model: selectedModel, files: uploadedFiles });
-      chatMessageInput.value = '';
     } else {
       // Global Lounge Channel Submission
       if (hasFiles) {
@@ -561,16 +577,39 @@ document.addEventListener('DOMContentLoaded', () => {
           });
           stagedFiles = [];
           renderStagedFiles();
-          chatMessageInput.value = '';
         }
       } else {
         socket.emit('message:send', { text });
-        chatMessageInput.value = '';
       }
     }
 
     socket.emit('typing:stop');
-  });
+    setTimeout(scrollToBottom, 50);
+  }
+
+  if (chatForm) {
+    chatForm.addEventListener('submit', (e) => {
+      e.preventDefault();
+      submitChatMessage();
+    });
+  }
+
+  const sendBtn = document.getElementById('send-btn');
+  if (sendBtn) {
+    sendBtn.addEventListener('click', (e) => {
+      e.preventDefault();
+      submitChatMessage();
+    });
+  }
+
+  if (chatMessageInput) {
+    chatMessageInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault();
+        submitChatMessage();
+      }
+    });
+  }
 
   // --------------------------------------------------
   // Typing Indicator Logic
@@ -920,6 +959,7 @@ document.addEventListener('DOMContentLoaded', () => {
   function selectAiSession(sessionId) {
     aiSessionId = sessionId;
     localStorage.setItem('yogesh_ai_session_id', aiSessionId);
+    closeMobileSidebar();
 
     socket.emit('ai:session:select', { sessionId }, (res) => {
       if (res && res.success && res.session) {

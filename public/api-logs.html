@@ -411,6 +411,97 @@
       max-height: 250px;
       overflow-y: auto;
     }
+
+    /* Mobile Responsive Styles */
+    @media (max-width: 868px) {
+      .dashboard-header {
+        padding: 12px 16px;
+        flex-direction: column;
+        align-items: stretch;
+        gap: 12px;
+      }
+
+      .brand-title h1 {
+        font-size: 16px;
+        flex-wrap: wrap;
+      }
+
+      .nav-actions {
+        flex-wrap: wrap;
+        gap: 8px;
+        width: 100%;
+      }
+
+      .btn {
+        flex: 1;
+        justify-content: center;
+        padding: 6px 10px;
+        font-size: 12px;
+      }
+
+      .dashboard-container {
+        padding: 16px 12px;
+      }
+
+      .metrics-grid {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 10px;
+        margin-bottom: 20px;
+      }
+
+      .metric-card {
+        padding: 14px 10px;
+        gap: 10px;
+      }
+
+      .metric-icon {
+        width: 38px;
+        height: 38px;
+        font-size: 16px;
+      }
+
+      .metric-val {
+        font-size: 18px;
+      }
+
+      .filter-bar {
+        padding: 12px;
+        gap: 10px;
+        flex-direction: column;
+        align-items: stretch;
+      }
+
+      .search-box {
+        min-width: 100%;
+      }
+
+      .filter-select {
+        width: 100%;
+      }
+
+      .table-container {
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+      }
+
+      .logs-table {
+        min-width: 650px;
+      }
+
+      .inspector-card {
+        width: 95vw;
+        max-height: 90vh;
+        border-radius: 12px;
+      }
+
+      .inspector-header {
+        padding: 12px 16px;
+      }
+
+      .inspector-body {
+        padding: 16px;
+      }
+    }
   </style>
 </head>
 <body>

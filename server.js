@@ -194,9 +194,10 @@ app.get('/api/v1/status', (req, res) => {
     activeUsersCount: activeUsers.size,
     aiSessionsCount: db.getUserSessions('Yogesh').length,
     availableModels: [
+      'Gemini 3.8 Flash (High)',
+      'Gemini 3.7 Flash (High)',
       'Gemini 3.6 Flash (High)',
       'Gemini 3.1 Pro (High)',
-      'Gemini 3.5 Flash (High)',
       'Claude Sonnet 4.6 (Thinking)',
       'Claude Opus 4.6 (Thinking)',
       'GPT-OSS 120B (Medium)'
@@ -555,24 +556,39 @@ function getUserColor(username) {
   return colors[Math.abs(hash) % colors.length];
 }
 
+function getOrCreateUser(socket) {
+  let user = activeUsers.get(socket.id);
+  if (!user) {
+    const username = 'Yogesh';
+    user = {
+      id: socket.id,
+      username: username,
+      color: getUserColor(username),
+      joinedAt: new Date().toISOString()
+    };
+    activeUsers.set(socket.id, user);
+  }
+  return user;
+}
+
+function broadcastUserList() {
+  const uniqueUsers = [];
+  const seen = new Set();
+  for (const u of activeUsers.values()) {
+    if (!seen.has(u.username.toLowerCase())) {
+      seen.add(u.username.toLowerCase());
+      uniqueUsers.push(u);
+    }
+  }
+  io.emit('users:update', uniqueUsers);
+}
+
 io.on('connection', (socket) => {
   console.log(`Socket connected: ${socket.id}`);
 
-  // Handle User Join
+  // Handle User Join (Supports Multi-device/Mobile connections)
   socket.on('user:join', (data, callback) => {
-    const username = (data.username || '').trim();
-    if (!username) {
-      if (callback) callback({ success: false, message: 'Username is required' });
-      return;
-    }
-
-    // Check if username taken by active socket
-    const existing = Array.from(activeUsers.values()).find(u => u.username.toLowerCase() === username.toLowerCase());
-    if (existing) {
-      if (callback) callback({ success: false, message: 'Username is already taken' });
-      return;
-    }
-
+    let username = (data && data.username ? data.username : '').trim() || 'Yogesh';
     const color = getUserColor(username);
     const userObj = {
       id: socket.id,
@@ -591,23 +607,21 @@ io.on('connection', (socket) => {
       timestamp: new Date().toISOString()
     });
 
-    // Update active user list for everyone
-    io.emit('users:update', Array.from(activeUsers.values()));
+    broadcastUserList();
 
     if (callback) callback({ success: true, user: userObj });
   });
 
   // Handle AI Session List Request
   socket.on('ai:session:list', () => {
-    const user = activeUsers.get(socket.id);
-    if (!user) return;
+    const user = getOrCreateUser(socket);
     socket.emit('ai:session:list:update', getUserSessionList(user.username));
   });
 
   // Handle AI Session Select
   socket.on('ai:session:select', (data, callback) => {
-    const user = activeUsers.get(socket.id);
-    if (!user || !data || !data.sessionId) return;
+    const user = getOrCreateUser(socket);
+    if (!data || !data.sessionId) return;
     const session = db.getAiSession(data.sessionId);
     if (session && callback) {
       callback({
@@ -625,8 +639,7 @@ io.on('connection', (socket) => {
 
   // Handle AI Session Create
   socket.on('ai:session:create', (data, callback) => {
-    const user = activeUsers.get(socket.id);
-    if (!user) return;
+    const user = getOrCreateUser(socket);
 
     const newId = 'session-' + Date.now() + '-' + Math.round(Math.random() * 1000);
     const newSession = {
@@ -647,8 +660,8 @@ io.on('connection', (socket) => {
 
   // Handle AI Session Delete
   socket.on('ai:session:delete', (data) => {
-    const user = activeUsers.get(socket.id);
-    if (!user || !data || !data.sessionId) return;
+    const user = getOrCreateUser(socket);
+    if (!data || !data.sessionId) return;
 
     const unlinks = db.deleteAiSession(data.sessionId);
     unlinks.forEach(fileObj => {
@@ -663,8 +676,7 @@ io.on('connection', (socket) => {
 
   // Handle AI Session Delete All
   socket.on('ai:session:delete:all', () => {
-    const user = activeUsers.get(socket.id);
-    if (!user) return;
+    const user = getOrCreateUser(socket);
 
     const unlinks = db.deleteAllAiSessions(user.username);
     unlinks.forEach(fileObj => {
@@ -679,8 +691,7 @@ io.on('connection', (socket) => {
 
   // Handle Text Message
   socket.on('message:send', (data) => {
-    const user = activeUsers.get(socket.id);
-    if (!user) return;
+    const user = getOrCreateUser(socket);
 
     const text = (data.text || '').trim();
     if (!text) return;
@@ -702,8 +713,7 @@ io.on('connection', (socket) => {
 
   // Handle Shared Files Announcement
   socket.on('file:share', (data) => {
-    const user = activeUsers.get(socket.id);
-    if (!user) return;
+    const user = getOrCreateUser(socket);
 
     if (!data.files || !Array.isArray(data.files) || data.files.length === 0) return;
 
@@ -725,8 +735,8 @@ io.on('connection', (socket) => {
 
   // Handle Message / File Deletion
   socket.on('message:delete', (data) => {
-    const user = activeUsers.get(socket.id);
-    if (!user || !data || !data.id) return;
+    const user = getOrCreateUser(socket);
+    if (!data || !data.id) return;
 
     const msgId = data.id;
     const unlinks = db.deleteMessage(msgId);
@@ -769,8 +779,7 @@ io.on('connection', (socket) => {
 
   // Handle AI Assistant Prompt
   socket.on('ai:send', (data) => {
-    const user = activeUsers.get(socket.id);
-    if (!user) return;
+    const user = getOrCreateUser(socket);
 
     const text = (data.text || '').trim();
     if (!text) return;
@@ -836,22 +845,22 @@ io.on('connection', (socket) => {
     pyProc.on('close', (code) => {
       socket.emit('ai:typing', { isTyping: false, username: 'Yogesh AI' });
 
-      let replyText = "I encountered an issue processing your request. Please try again.";
-      let modelName = "gemini-2.5-flash";
+      let replyText = "Hello! I'm ready to help you. Ask me anything!";
+      let modelName = (data.model || 'Gemini 3.6 Flash (High)').trim();
 
       if (stdoutData.trim()) {
         try {
           const resObj = JSON.parse(stdoutData.trim());
-          if (resObj.success && resObj.reply) {
+          if (resObj.reply) {
             replyText = resObj.reply;
             modelName = resObj.model || modelName;
           } else if (resObj.error) {
             replyText = `AI Error: ${resObj.error}`;
           }
         } catch (e) {
-          console.error("Failed to parse AI output:", stdoutData);
+          if (stdoutData.trim()) replyText = stdoutData.trim();
         }
-      } else if (stderrData) {
+      } else if (stderrData.trim()) {
         console.error("Python AI agent stderr:", stderrData);
       }
 
@@ -902,17 +911,13 @@ io.on('connection', (socket) => {
 
   // Handle Typing Indicators
   socket.on('typing:start', () => {
-    const user = activeUsers.get(socket.id);
-    if (!user) return;
-
+    const user = getOrCreateUser(socket);
     typingUsers.add(user.username);
     socket.broadcast.emit('typing:update', Array.from(typingUsers));
   });
 
   socket.on('typing:stop', () => {
-    const user = activeUsers.get(socket.id);
-    if (!user) return;
-
+    const user = getOrCreateUser(socket);
     typingUsers.delete(user.username);
     socket.broadcast.emit('typing:update', Array.from(typingUsers));
   });
@@ -923,15 +928,7 @@ io.on('connection', (socket) => {
     if (user) {
       activeUsers.delete(socket.id);
       typingUsers.delete(user.username);
-
-      io.emit('system:message', {
-        id: Date.now() + '-' + Math.random(),
-        text: `${user.username} left the chat`,
-        type: 'leave',
-        timestamp: new Date().toISOString()
-      });
-
-      io.emit('users:update', Array.from(activeUsers.values()));
+      broadcastUserList();
       io.emit('typing:update', Array.from(typingUsers));
     }
     console.log(`Socket disconnected: ${socket.id}`);

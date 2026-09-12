@@ -269,16 +269,8 @@ def main():
     try:
         input_data = {}
         
-        # 1. Prioritize reading JSON payload from stdin
-        raw_input = sys.stdin.read().strip() if not sys.stdin.isatty() else ""
-        if raw_input:
-            try:
-                input_data = json.loads(raw_input)
-            except Exception:
-                input_data = {"prompt": raw_input, "username": "User"}
-
-        # 2. If stdin didn't contain JSON prompt, parse CLI sys.argv arguments
-        if not input_data.get("prompt") and len(sys.argv) > 1:
+        # 1. If CLI positional arguments are present, parse them immediately without blocking on stdin
+        if len(sys.argv) > 1:
             args = sys.argv[1:]
             prompt_val = ""
             model_val = "Gemini 3.6 Flash (High)"
@@ -307,6 +299,26 @@ def main():
                     "username": "User",
                     "model": model_val
                 }
+
+        # 2. Otherwise read from stdin (e.g. Node.js piping JSON payload)
+        if not input_data.get("prompt"):
+            raw_input = ""
+            if os.name != 'nt':
+                import select
+                rlist, _, _ = select.select([sys.stdin], [], [], 0.05)
+                if rlist:
+                    raw_input = sys.stdin.read().strip()
+            else:
+                try:
+                    raw_input = sys.stdin.read().strip()
+                except Exception:
+                    raw_input = ""
+
+            if raw_input:
+                try:
+                    input_data = json.loads(raw_input)
+                except Exception:
+                    input_data = {"prompt": raw_input, "username": "User"}
 
         prompt = input_data.get("prompt", "").strip()
         username = input_data.get("username", "User").strip()

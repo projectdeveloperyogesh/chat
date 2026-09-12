@@ -240,17 +240,21 @@ def generate_ai_response(prompt, username, history=None, selected_model="Gemini 
 
     # 2. Standalone Free Cloud Engine (No API key, No local server needed)
     try:
-        import g4f
-        response = g4f.ChatCompletion.create(
-            model=g4f.models.gpt_4o_mini,
+        os.environ["G4F_CHECK_VERSION"] = "False"
+        from g4f.client import Client
+        client = Client()
+        response = client.chat.completions.create(
+            model="llama-3.3-70b",
             messages=[{"role": "user", "content": full_prompt}]
         )
-        if response and str(response).strip():
-            return {
-                "success": True,
-                "reply": str(response).strip(),
-                "model": "Free Standalone Cloud AI Engine"
-            }
+        if response and response.choices and response.choices[0].message.content:
+            reply_content = response.choices[0].message.content.strip()
+            if reply_content:
+                return {
+                    "success": True,
+                    "reply": reply_content,
+                    "model": "Free Cloud AI Engine (Llama 3.3 70B)"
+                }
     except Exception as e:
         sys.stderr.write(f"Free Cloud AI Error: {e}\n")
 

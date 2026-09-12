@@ -120,6 +120,26 @@ function getPythonCommand() {
   return process.platform === 'win32' ? 'python' : 'python3';
 }
 
+// Safely parse JSON from Python stdout stream even if library logs exist
+function parseAiStdout(rawStdout) {
+  if (!rawStdout || !rawStdout.trim()) return null;
+  const lines = rawStdout.trim().split('\n');
+  for (let i = lines.length - 1; i >= 0; i--) {
+    const line = lines[i].trim();
+    if (line.startsWith('{') && line.endsWith('}')) {
+      try {
+        const obj = JSON.parse(line);
+        if (obj && typeof obj === 'object') return obj;
+      } catch (e) {}
+    }
+  }
+  try {
+    return JSON.parse(rawStdout.trim());
+  } catch (e) {
+    return null;
+  }
+}
+
 // Determine file category helper
 function getFileCategory(mimeType, filename) {
   if (mimeType.startsWith('image/')) return 'image';
@@ -302,18 +322,12 @@ app.post('/api/v1/ai/chat', (req, res) => {
     let replyText = "I encountered an issue processing your request.";
     let modelName = reqModel;
 
-    if (stdoutData.trim()) {
-      try {
-        const resObj = JSON.parse(stdoutData.trim());
-        if (resObj.success && resObj.reply) {
-          replyText = resObj.reply;
-          modelName = resObj.model || modelName;
-        } else if (resObj.error) {
-          replyText = `AI Error: ${resObj.error}`;
-        }
-      } catch (e) {
-        console.error("Failed to parse AI output:", stdoutData);
-      }
+    const resObj = parseAiStdout(stdoutData);
+    if (resObj && resObj.reply) {
+      replyText = resObj.reply;
+      modelName = resObj.model || modelName;
+    } else if (resObj && resObj.error) {
+      replyText = `AI Error: ${resObj.error}`;
     }
 
     db.addAiHistory(sessionId, username, text || 'File Attachment Analysis');
@@ -868,20 +882,12 @@ io.on('connection', (socket) => {
       let replyText = "Hello! I'm ready to help you. Ask me anything!";
       let modelName = (data.model || 'Gemini 3.6 Flash (High)').trim();
 
-      if (stdoutData.trim()) {
-        try {
-          const resObj = JSON.parse(stdoutData.trim());
-          if (resObj.reply) {
-            replyText = resObj.reply;
-            modelName = resObj.model || modelName;
-          } else if (resObj.error) {
-            replyText = `AI Error: ${resObj.error}`;
-          }
-        } catch (e) {
-          if (stdoutData.trim()) replyText = stdoutData.trim();
-        }
-      } else if (stderrData.trim()) {
-        console.error("Python AI agent stderr:", stderrData);
+      const resObj = parseAiStdout(stdoutData);
+      if (resObj && resObj.reply) {
+        replyText = resObj.reply;
+        modelName = resObj.model || modelName;
+      } else if (resObj && resObj.error) {
+        replyText = `AI Error: ${resObj.error}`;
       }
 
       // Update multi-turn session history & messages in SQLite

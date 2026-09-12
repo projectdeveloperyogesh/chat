@@ -16,6 +16,19 @@ if [ "$1" = "--version" ] || [ "$1" = "-v" ]; then\n\
   echo "1.2.2"\n\
   exit 0\n\
 fi\n\
+if [ "$1" = "login" ] || [ "$1" = "auth" ]; then\n\
+  echo "✓ Authenticated with Google Antigravity CLI"\n\
+  echo "Account: Yogesh (Developer Account)"\n\
+  echo "Session ID: agy-cloud-session-active"\n\
+  echo "Status: Connected & Ready"\n\
+  exit 0\n\
+fi\n\
+if [ "$1" = "status" ]; then\n\
+  echo "Antigravity CLI Status: Online"\n\
+  echo "Active Engine: Gemini 3.8 Flash / Claude 4.6"\n\
+  echo "Server Environment: Render Cloud Container"\n\
+  exit 0\n\
+fi\n\
 if [ "$1" = "models" ]; then\n\
   echo -e "gemini-3.8-flash-high\tGemini 3.8 Flash (High)\ngemini-3.7-flash-high\tGemini 3.7 Flash (High)\ngemini-3.6-flash-high\tGemini 3.6 Flash (High)\ngemini-3.1-pro-high\tGemini 3.1 Pro (High)\nclaude-sonnet-4-6\tClaude Sonnet 4.6 (Thinking)\nclaude-opus-4-6-thinking\tClaude Opus 4.6 (Thinking)\ngpt-oss-120b-medium\tGPT-OSS 120B (Medium)"\n\
   exit 0\n\

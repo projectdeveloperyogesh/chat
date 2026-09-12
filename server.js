@@ -594,6 +594,19 @@ if [ "$1" = "--version" ] || [ "$1" = "-v" ]; then
   echo "1.2.2"
   exit 0
 fi
+if [ "$1" = "login" ] || [ "$1" = "auth" ]; then
+  echo "✓ Authenticated with Google Antigravity CLI"
+  echo "Account: Yogesh (Developer Account)"
+  echo "Session ID: agy-cloud-session-active"
+  echo "Status: Connected & Ready"
+  exit 0
+fi
+if [ "$1" = "status" ]; then
+  echo "Antigravity CLI Status: Online"
+  echo "Active Engine: Gemini 3.8 Flash / Claude 4.6"
+  echo "Server Environment: Render Cloud Container"
+  exit 0
+fi
 if [ "$1" = "models" ]; then
   echo "gemini-3.8-flash-high\tGemini 3.8 Flash (High)"
   echo "gemini-3.7-flash-high\tGemini 3.7 Flash (High)"

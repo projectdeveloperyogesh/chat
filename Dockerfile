@@ -24,7 +24,7 @@ RUN npm install --production
 # Create Python virtual environment and install Python packages
 RUN python3 -m venv .venv
 RUN .venv/bin/pip install --upgrade pip
-RUN .venv/bin/pip install SpeechRecognition pydub imageio-ffmpeg pypdf python-docx g4f curl_cffi
+RUN .venv/bin/pip install SpeechRecognition pydub imageio-ffmpeg pypdf python-docx
 
 # Copy application source code
 COPY . .

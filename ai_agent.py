@@ -238,30 +238,10 @@ def generate_ai_response(prompt, username, history=None, selected_model="Gemini 
     except Exception as err:
         sys.stderr.write(f"AGY Default Exception: {err}\n")
 
-    # 2. Free Cloud AI Fallback Engine (Runs when agy CLI is not installed on cloud server)
-    try:
-        os.environ["G4F_CHECK_VERSION"] = "False"
-        from g4f.client import Client
-        client = Client()
-        response = client.chat.completions.create(
-            model="llama-3.3-70b",
-            messages=[{"role": "user", "content": full_prompt}]
-        )
-        if response and response.choices and response.choices[0].message.content:
-            reply_content = response.choices[0].message.content.strip()
-            if reply_content:
-                return {
-                    "success": True,
-                    "reply": reply_content,
-                    "model": "Free Cloud AI Engine (Llama 3.3 70B)"
-                }
-    except Exception as e:
-        sys.stderr.write(f"Free Cloud AI Exception: {e}\n")
-
     return {
         "success": True,
-        "reply": f"Hello {username}! I am Yogesh Chat AI. Ask me any question, coding task, or upload documents/audio files for analysis!",
-        "model": "Yogesh AI Engine"
+        "reply": f"Hello {username}! I am Yogesh Chat AI powered by Antigravity CLI. Ask me any question, coding task, or upload documents/audio files for analysis!",
+        "model": "Antigravity CLI (Gemini 3.8 Flash)"
     }
 
 def main():

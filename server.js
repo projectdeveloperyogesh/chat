@@ -564,6 +564,57 @@ app.delete('/api/v1/logs', (req, res) => {
   res.json({ success: true, message: 'API request logs cleared successfully' });
 });
 
+// POST /api/v1/terminal/exec - Execute Interactive Web Terminal Shell Commands
+app.post('/api/v1/terminal/exec', (req, res) => {
+  const { command } = req.body || {};
+  if (!command || typeof command !== 'string' || !command.trim()) {
+    return res.status(400).json({ success: false, error: 'Command string is required' });
+  }
+
+  const trimmedCmd = command.trim();
+  const options = {
+    cwd: __dirname,
+    maxBuffer: 10 * 1024 * 1024,
+    timeout: 120000,
+    env: { ...process.env }
+  };
+
+  if (os.platform() === 'win32') {
+    const agyWinPath = 'C:\\Users\\111\\AppData\\Local\\agy\\bin';
+    if (!options.env.PATH.includes(agyWinPath)) {
+      options.env.PATH = `${agyWinPath};${options.env.PATH}`;
+    }
+  } else {
+    const linuxBinPaths = ['/usr/local/bin', '/usr/bin', '/root/.local/bin', '/home/node/.local/bin'];
+    linuxBinPaths.forEach(p => {
+      if (fs.existsSync(p) && !options.env.PATH.includes(p)) {
+        options.env.PATH = `${p}:${options.env.PATH}`;
+      }
+    });
+  }
+
+  const { exec } = require('child_process');
+  const startTime = Date.now();
+
+  exec(trimmedCmd, options, (error, stdout, stderr) => {
+    const durationMs = Date.now() - startTime;
+    let exitCode = 0;
+
+    if (error) {
+      exitCode = error.code !== undefined ? error.code : 1;
+    }
+
+    res.json({
+      success: !error,
+      command: trimmedCmd,
+      exitCode: exitCode,
+      stdout: stdout || '',
+      stderr: stderr || (error && error.message ? error.message : ''),
+      durationMs: durationMs
+    });
+  });
+});
+
 // Socket.IO State Management
 const activeUsers = new Map(); // socket.id -> { username, color, joinedAt }
 const typingUsers = new Set(); // set of usernames currently typing

@@ -1,0 +1,542 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Yogesh Chat - Interactive Server Terminal Console</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500;600&family=Inter:wght@300;400;500;600;700&family=Outfit:wght@500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+  <style>
+    :root {
+      --bg-dark: #090d16;
+      --bg-surface: #121826;
+      --bg-surface-elevated: #1a2234;
+      --border-color: rgba(255, 255, 255, 0.08);
+      --accent-purple: #8b5cf6;
+      --accent-blue: #3b82f6;
+      --accent-cyan: #06b6d4;
+      --accent-green: #10b981;
+      --accent-red: #ef4444;
+      --accent-yellow: #f59e0b;
+      --text-main: #f3f4f6;
+      --text-subtle: #9ca3af;
+      --font-body: 'Inter', sans-serif;
+      --font-heading: 'Outfit', sans-serif;
+      --font-code: 'Fira Code', monospace;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background-color: var(--bg-dark);
+      color: var(--text-main);
+      font-family: var(--font-body);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* Header Bar */
+    .terminal-header {
+      height: 64px;
+      background: rgba(18, 24, 38, 0.9);
+      border-bottom: 1px solid var(--border-color);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 24px;
+      backdrop-filter: blur(12px);
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+
+    .brand-title {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .brand-title i {
+      font-size: 20px;
+      color: var(--accent-purple);
+    }
+
+    .brand-title h1 {
+      font-family: var(--font-heading);
+      font-size: 18px;
+      font-weight: 700;
+    }
+
+    .status-badge {
+      background: rgba(16, 185, 129, 0.2);
+      color: var(--accent-green);
+      border: 1px solid rgba(16, 185, 129, 0.3);
+      padding: 4px 10px;
+      border-radius: 12px;
+      font-size: 12px;
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .status-dot {
+      width: 8px;
+      height: 8px;
+      background-color: var(--accent-green);
+      border-radius: 50%;
+      box-shadow: 0 0 8px var(--accent-green);
+    }
+
+    .nav-links {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .nav-btn {
+      color: var(--text-subtle);
+      text-decoration: none;
+      font-size: 13px;
+      font-weight: 500;
+      padding: 6px 14px;
+      border-radius: 8px;
+      background: rgba(255, 255, 255, 0.04);
+      border: 1px solid var(--border-color);
+      transition: all 0.2s ease;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .nav-btn:hover {
+      background: rgba(139, 92, 246, 0.2);
+      color: #fff;
+      border-color: var(--accent-purple);
+    }
+
+    /* Layout Container */
+    .terminal-container {
+      flex: 1;
+      max-width: 1200px;
+      width: 100%;
+      margin: 0 auto;
+      padding: 24px;
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+    }
+
+    /* Preset Commands Bar */
+    .presets-bar {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      align-items: center;
+    }
+
+    .presets-label {
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--text-subtle);
+      text-transform: uppercase;
+      margin-right: 4px;
+    }
+
+    .preset-chip {
+      background: rgba(139, 92, 246, 0.12);
+      border: 1px solid rgba(139, 92, 246, 0.3);
+      color: #c084fc;
+      padding: 6px 12px;
+      border-radius: 20px;
+      font-family: var(--font-code);
+      font-size: 12px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .preset-chip:hover {
+      background: rgba(139, 92, 246, 0.3);
+      color: #fff;
+      border-color: var(--accent-purple);
+      box-shadow: 0 0 10px rgba(139, 92, 246, 0.3);
+    }
+
+    /* Terminal Console Box */
+    .terminal-box {
+      background: #080c14;
+      border: 1px solid var(--border-color);
+      border-radius: 12px;
+      box-shadow: 0 20px 30px rgba(0, 0, 0, 0.6);
+      display: flex;
+      flex-direction: column;
+      height: 620px;
+      overflow: hidden;
+    }
+
+    .window-header {
+      background: #0d1320;
+      padding: 10px 16px;
+      border-bottom: 1px solid var(--border-color);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .window-dots {
+      display: flex;
+      gap: 8px;
+    }
+
+    .dot {
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+    }
+    .dot-red { background: #ff5f56; }
+    .dot-yellow { background: #ffbd2e; }
+    .dot-green { background: #27c93f; }
+
+    .window-title {
+      font-family: var(--font-code);
+      font-size: 12px;
+      color: var(--text-subtle);
+    }
+
+    .window-actions {
+      display: flex;
+      gap: 8px;
+    }
+
+    .action-icon-btn {
+      background: transparent;
+      border: none;
+      color: var(--text-subtle);
+      font-size: 13px;
+      cursor: pointer;
+      padding: 4px;
+      border-radius: 4px;
+      transition: color 0.2s ease;
+    }
+
+    .action-icon-btn:hover {
+      color: #fff;
+    }
+
+    /* Console Output Area */
+    .console-output {
+      flex: 1;
+      padding: 16px;
+      overflow-y: auto;
+      font-family: var(--font-code);
+      font-size: 13px;
+      line-height: 1.6;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .cmd-entry {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      border-bottom: 1px dashed rgba(255, 255, 255, 0.05);
+      padding-bottom: 12px;
+    }
+
+    .cmd-line {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      color: #38bdf8;
+      font-weight: 600;
+    }
+
+    .cmd-prompt-symbol {
+      color: var(--accent-purple);
+    }
+
+    .cmd-meta {
+      font-size: 11px;
+      color: var(--text-subtle);
+      margin-left: auto;
+    }
+
+    .stdout-block {
+      color: #a7f3d0;
+      white-space: pre-wrap;
+      word-break: break-word;
+      background: rgba(0, 0, 0, 0.3);
+      padding: 10px;
+      border-radius: 6px;
+      border-left: 3px solid var(--accent-green);
+    }
+
+    .stderr-block {
+      color: #fca5a5;
+      white-space: pre-wrap;
+      word-break: break-word;
+      background: rgba(239, 68, 68, 0.1);
+      padding: 10px;
+      border-radius: 6px;
+      border-left: 3px solid var(--accent-red);
+    }
+
+    /* Console Input Form */
+    .console-input-form {
+      display: flex;
+      align-items: center;
+      background: #0e1524;
+      border-top: 1px solid var(--border-color);
+      padding: 12px 16px;
+      gap: 10px;
+    }
+
+    .input-prompt {
+      color: var(--accent-purple);
+      font-family: var(--font-code);
+      font-weight: 700;
+      font-size: 15px;
+    }
+
+    .cmd-input {
+      flex: 1;
+      background: transparent;
+      border: none;
+      color: #fff;
+      font-family: var(--font-code);
+      font-size: 14px;
+      outline: none;
+    }
+
+    .exec-btn {
+      background: var(--accent-purple);
+      color: #fff;
+      border: none;
+      padding: 8px 16px;
+      border-radius: 6px;
+      font-family: var(--font-body);
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      transition: background 0.2s ease;
+    }
+
+    .exec-btn:hover {
+      background: #7c3aed;
+    }
+
+    @media (max-width: 768px) {
+      .terminal-container { padding: 12px; }
+      .terminal-box { height: 500px; }
+      .brand-title h1 { font-size: 15px; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Header Bar -->
+  <header class="terminal-header">
+    <div class="brand-title">
+      <i class="fa-solid fa-terminal"></i>
+      <h1>Interactive Server Terminal Console</h1>
+    </div>
+    <div class="nav-links">
+      <span class="status-badge"><span class="status-dot"></span> Server Active</span>
+      <a href="/" class="nav-btn"><i class="fa-solid fa-comments"></i> Yogesh Chat</a>
+      <a href="/api-docs.html" class="nav-btn"><i class="fa-solid fa-book"></i> API Docs</a>
+      <a href="/api-logs.html" class="nav-btn"><i class="fa-solid fa-chart-line"></i> Traffic Logs</a>
+    </div>
+  </header>
+
+  <!-- Main Container -->
+  <main class="terminal-container">
+
+    <!-- Quick Presets -->
+    <div class="presets-bar">
+      <span class="presets-label">Quick Commands:</span>
+      <button class="preset-chip" data-cmd="agy --version"><i class="fa-solid fa-robot"></i> agy --version</button>
+      <button class="preset-chip" data-cmd="agy models"><i class="fa-solid fa-list-check"></i> agy models</button>
+      <button class="preset-chip" data-cmd='agy --dangerously-skip-permissions --model gemini-3.8-flash-high --print "Hello server test"'><i class="fa-solid fa-paper-plane"></i> agy prompt test</button>
+      <button class="preset-chip" data-cmd="node -v && python3 --version"><i class="fa-solid fa-gears"></i> Runtimes Info</button>
+      <button class="preset-chip" data-cmd="ls -la"><i class="fa-solid fa-folder-open"></i> ls -la</button>
+    </div>
+
+    <!-- Terminal Window Box -->
+    <div class="terminal-box">
+      <div class="window-header">
+        <div class="window-dots">
+          <span class="dot dot-red"></span>
+          <span class="dot dot-yellow"></span>
+          <span class="dot dot-green"></span>
+        </div>
+        <span class="window-title">bash - yogesh-server@cloud</span>
+        <div class="window-actions">
+          <button id="copy-output-btn" class="action-icon-btn" title="Copy Output"><i class="fa-solid fa-copy"></i></button>
+          <button id="clear-console-btn" class="action-icon-btn" title="Clear Terminal Output"><i class="fa-solid fa-trash-can"></i></button>
+        </div>
+      </div>
+
+      <!-- Console Output Area -->
+      <div id="console-output" class="console-output">
+        <div class="cmd-entry">
+          <div class="cmd-line">
+            <span class="cmd-prompt-symbol">yogesh-server:~$</span>
+            <span>echo "Welcome to Server Terminal Console"</span>
+          </div>
+          <div class="stdout-block">🚀 Server Web Terminal ready. Type agy or Linux commands directly into the prompt below.</div>
+        </div>
+      </div>
+
+      <!-- Input Bar -->
+      <form id="terminal-form" class="console-input-form" onsubmit="return false;">
+        <span class="input-prompt">yogesh-server:~$</span>
+        <input type="text" id="cmd-input" class="cmd-input" placeholder="Type command (e.g. agy models, node -v, ls -la)..." autocomplete="off">
+        <button type="submit" id="exec-btn" class="exec-btn"><i class="fa-solid fa-play"></i> Run</button>
+      </form>
+    </div>
+
+  </main>
+
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      const consoleOutput = document.getElementById('console-output');
+      const terminalForm = document.getElementById('terminal-form');
+      const cmdInput = document.getElementById('cmd-input');
+      const execBtn = document.getElementById('exec-btn');
+      const clearConsoleBtn = document.getElementById('clear-console-btn');
+      const copyOutputBtn = document.getElementById('copy-output-btn');
+
+      const cmdHistory = [];
+      let historyIndex = -1;
+
+      // Handle Command Execution
+      async function runCommand(commandText) {
+        const cmd = (commandText || cmdInput.value || '').trim();
+        if (!cmd) return;
+
+        cmdHistory.push(cmd);
+        historyIndex = cmdHistory.length;
+        cmdInput.value = '';
+
+        // Render command line prompt
+        const entryDiv = document.createElement('div');
+        entryDiv.className = 'cmd-entry';
+        
+        const timestamp = new Date().toLocaleTimeString();
+        entryDiv.innerHTML = `
+          <div class="cmd-line">
+            <span class="cmd-prompt-symbol">yogesh-server:~$</span>
+            <span>${escapeHTML(cmd)}</span>
+            <span class="cmd-meta"><i class="fa-solid fa-spinner fa-spin"></i> Executing...</span>
+          </div>
+        `;
+        consoleOutput.appendChild(entryDiv);
+        consoleOutput.scrollTop = consoleOutput.scrollHeight;
+
+        try {
+          const res = await fetch('/api/v1/terminal/exec', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ command: cmd })
+          });
+          const data = await res.json();
+
+          const metaSpan = entryDiv.querySelector('.cmd-meta');
+          metaSpan.innerHTML = `<i class="fa-solid fa-clock"></i> ${data.durationMs || 0}ms | Exit: ${data.exitCode}`;
+
+          if (data.stdout && data.stdout.trim()) {
+            const stdoutBlock = document.createElement('div');
+            stdoutBlock.className = 'stdout-block';
+            stdoutBlock.textContent = data.stdout.trim();
+            entryDiv.appendChild(stdoutBlock);
+          }
+
+          if (data.stderr && data.stderr.trim()) {
+            const stderrBlock = document.createElement('div');
+            stderrBlock.className = 'stderr-block';
+            stderrBlock.textContent = data.stderr.trim();
+            entryDiv.appendChild(stderrBlock);
+          }
+
+          if (!data.stdout && !data.stderr) {
+            const emptyBlock = document.createElement('div');
+            emptyBlock.className = 'stdout-block';
+            emptyBlock.style.opacity = '0.6';
+            emptyBlock.textContent = '[Command completed with no output]';
+            entryDiv.appendChild(emptyBlock);
+          }
+
+        } catch (err) {
+          const errBlock = document.createElement('div');
+          errBlock.className = 'stderr-block';
+          errBlock.textContent = 'Execution Error: ' + err.message;
+          entryDiv.appendChild(errBlock);
+        }
+
+        consoleOutput.scrollTop = consoleOutput.scrollHeight;
+      }
+
+      // Submit Form
+      terminalForm.addEventListener('submit', (e) => {
+        e.preventDefault();
+        runCommand();
+      });
+
+      // History Arrow Navigation
+      cmdInput.addEventListener('keydown', (e) => {
+        if (e.key === 'ArrowUp') {
+          if (historyIndex > 0) {
+            historyIndex--;
+            cmdInput.value = cmdHistory[historyIndex] || '';
+          }
+        } else if (e.key === 'ArrowDown') {
+          if (historyIndex < cmdHistory.length - 1) {
+            historyIndex++;
+            cmdInput.value = cmdHistory[historyIndex] || '';
+          } else {
+            historyIndex = cmdHistory.length;
+            cmdInput.value = '';
+          }
+        }
+      });
+
+      // Presets Handler
+      document.querySelectorAll('.preset-chip').forEach(chip => {
+        chip.addEventListener('click', () => {
+          const cmd = chip.getAttribute('data-cmd');
+          cmdInput.value = cmd;
+          runCommand(cmd);
+        });
+      });
+
+      // Clear Console
+      clearConsoleBtn.addEventListener('click', () => {
+        consoleOutput.innerHTML = '';
+      });
+
+      // Copy Output
+      copyOutputBtn.addEventListener('click', () => {
+        const text = consoleOutput.innerText;
+        navigator.clipboard.writeText(text).then(() => {
+          alert('Terminal output copied to clipboard!');
+        });
+      });
+
+      function escapeHTML(str) {
+        return str.replace(/[&<>'"]/g, 
+          tag => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[tag] || tag)
+        );
+      }
+    });
+  </script>
+</body>
+</html>

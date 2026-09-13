@@ -2,7 +2,7 @@
 """
 Yogesh Chat - AI Agent Python Bridge
 Integrates Gemini / Antigravity AI models with Node.js backend.
-Optimized for ultra-fast execution speed on Render cloud container & local environment.
+Optimized for standalone cloud deployment on Render.
 """
 
 import sys
@@ -96,65 +96,6 @@ def get_default_gemini_key():
     except Exception:
         return ""
 
-def fetch_live_weather(prompt):
-    """
-    Keyless live meteorological forecast lookup using Open-Meteo API.
-    Works reliably on cloud containers (Render) & local environments without rate limits or keys.
-    """
-    p_lower = prompt.lower().strip()
-    weather_keywords = ["weather", "temperature", "temprature", "temp", "forecast", "climate", "rain", "humidity"]
-    
-    if not any(kw in p_lower for kw in weather_keywords):
-        return None
-
-    # Extract location name
-    clean_p = re.sub(r'(?i)\b(weather|temperature|temprature|temp|forecast|climate|rain|humidity|in|for|today|now|current|report|city|the|of|what|is|how|tell|me|about|show)\b', ' ', prompt)
-    city = clean_p.strip()
-    if not city or len(city) < 2:
-        city = "Manali"
-
-    try:
-        geo_url = f"https://geocoding-api.open-meteo.com/v1/search?name={urllib.parse.quote(city)}&count=1&language=en&format=json"
-        req = urllib.request.Request(geo_url, headers={"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"})
-        with urllib.request.urlopen(req, timeout=3) as resp:
-            data = json.loads(resp.read().decode("utf-8"))
-            if not data.get("results"):
-                return None
-            res = data["results"][0]
-            lat = res["latitude"]
-            lon = res["longitude"]
-            c_name = res.get("name", city)
-            country = res.get("country", "")
-            admin1 = res.get("admin1", "")
-
-        location_str = f"{c_name}, {admin1}, {country}".strip(", ")
-        weather_url = f"https://api.open-meteo.com/v1/forecast?latitude={lat}&longitude={lon}&current=temperature_2m,relative_humidity_2m,apparent_temperature,precipitation,weather_code,wind_speed_10m&daily=temperature_2m_max,temperature_2m_min&timezone=auto"
-        req2 = urllib.request.Request(weather_url, headers={"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"})
-        with urllib.request.urlopen(req2, timeout=3) as resp2:
-            wdata = json.loads(resp2.read().decode("utf-8"))
-            curr = wdata.get("current", {})
-            daily = wdata.get("daily", {})
-            temp = curr.get("temperature_2m")
-            feels = curr.get("apparent_temperature")
-            hum = curr.get("relative_humidity_2m")
-            wind = curr.get("wind_speed_10m")
-            precip = curr.get("precipitation", 0)
-            t_max = daily.get("temperature_2m_max", [None])[0]
-            t_min = daily.get("temperature_2m_min", [None])[0]
-
-            return (
-                f"### 🌤️ Live Weather Report: {location_str}\n\n"
-                f"- 🌡️ **Current Temperature**: **{temp}°C** (Feels like **{feels}°C**)\n"
-                f"- 📊 **High / Low Today**: Max **{t_max}°C** | Min **{t_min}°C**\n"
-                f"- 💧 **Relative Humidity**: **{hum}%**\n"
-                f"- 💨 **Wind Speed**: **{wind} km/h**\n"
-                f"- 🌧️ **Precipitation**: **{precip} mm**\n\n"
-                f"*Source: Open-Meteo Global Meteorological API*"
-            )
-    except Exception as e:
-        sys.stderr.write(f"Open-Meteo Weather Error: {e}\n")
-        return None
-
 def generate_ai_response(prompt, username, history=None, selected_model="Gemini 3.6 Flash (High)", files=None, mode="cli", gemini_api_key=None):
     # Model map mapping engine UI names to internal labels
     model_map = {
@@ -196,15 +137,6 @@ def generate_ai_response(prompt, username, history=None, selected_model="Gemini 
         selected_model.lower(),
         ("gemini-3.6-flash-high", selected_model)
     )
-
-    # Step 0: Check for Live Weather Lookup query
-    weather_reply = fetch_live_weather(prompt)
-    if weather_reply:
-        return {
-            "success": True,
-            "reply": weather_reply,
-            "model": f"Antigravity CLI ({display_model})"
-        }
 
     # Format attached files into context
     doc_context = ""
@@ -262,7 +194,7 @@ def generate_ai_response(prompt, username, history=None, selected_model="Gemini 
         except Exception as e:
             sys.stderr.write(f"Gemini GenAI SDK Exception: {e}\n")
 
-        # 1b. Try Google Gemini REST API Direct Endpoint (Fast 3s timeout with early break on auth failure)
+        # 1b. Try Google Gemini REST API Direct Endpoint
         g_models = ["gemini-2.0-flash", "gemini-1.5-flash", "gemini-1.5-pro"]
         for g_model in g_models:
             try:

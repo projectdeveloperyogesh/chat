@@ -99,11 +99,20 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
+  function updateHeaderBadge(modelName) {
+    if (!modelName) return;
+    document.querySelectorAll('.ai-badge').forEach(badge => {
+      badge.textContent = modelName;
+    });
+  }
+
   if (aiModelSelect) {
     aiModelSelect.value = selectedModel;
+    updateHeaderBadge(selectedModel);
     aiModelSelect.addEventListener('change', () => {
       selectedModel = aiModelSelect.value;
       localStorage.setItem('yogesh_ai_model', selectedModel);
+      updateHeaderBadge(selectedModel);
     });
   }
 
@@ -192,7 +201,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Update Header Text & Icons
     if (channel === 'ai') {
-      channelTitle.innerHTML = `<i class="fa-solid fa-robot"></i> ai-assistant <span class="badge ai-badge">Gemini AI</span>`;
+      channelTitle.innerHTML = `<i class="fa-solid fa-robot"></i> ai-assistant <span class="badge ai-badge">${escapeHTML(selectedModel)}</span>`;
+      channelSub.textContent = `Ask questions, generate code, or discuss topics with Antigravity CLI`;
       channelSub.textContent = `Ask questions, generate code, or discuss topics with Antigravity CLI`;
       if (newAiSessionBtn) newAiSessionBtn.classList.remove('hidden');
       if (aiThreadsSection) aiThreadsSection.classList.remove('hidden');

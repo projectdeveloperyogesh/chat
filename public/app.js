@@ -75,6 +75,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const aiSessionList = document.getElementById('ai-session-list');
   const aiModelWrapper = document.getElementById('ai-model-wrapper');
   const aiModelSelect = document.getElementById('ai-model-select');
+  const aiEngineModeWrapper = document.getElementById('ai-engine-mode-wrapper');
 
   function getDefaultGeminiKey() {
     try {
@@ -203,6 +204,7 @@ document.addEventListener('DOMContentLoaded', () => {
       if (newAiSessionBtn) newAiSessionBtn.classList.remove('hidden');
       if (aiThreadsSection) aiThreadsSection.classList.remove('hidden');
       if (aiModelWrapper) aiModelWrapper.classList.remove('hidden');
+      if (aiEngineModeWrapper) aiEngineModeWrapper.classList.remove('hidden');
       socket.emit('ai:session:list');
     } else {
       channelTitle.innerHTML = `<i class="fa-solid fa-hashtag"></i> global-lounge`;
@@ -210,6 +212,7 @@ document.addEventListener('DOMContentLoaded', () => {
       if (newAiSessionBtn) newAiSessionBtn.classList.add('hidden');
       if (aiThreadsSection) aiThreadsSection.classList.add('hidden');
       if (aiModelWrapper) aiModelWrapper.classList.add('hidden');
+      if (aiEngineModeWrapper) aiEngineModeWrapper.classList.add('hidden');
     }
 
     renderChannelMessages();

@@ -187,7 +187,7 @@ def generate_ai_response(prompt, username, history=None, selected_model="Gemini 
                         return {
                             "success": True,
                             "reply": response.text.strip(),
-                            "model": f"Antigravity CLI ({display_model})"
+                            "model": f"Gemini Key ({display_model})"
                         }
                 except Exception:
                     pass
@@ -216,7 +216,7 @@ def generate_ai_response(prompt, username, history=None, selected_model="Gemini 
                         return {
                             "success": True,
                             "reply": reply_text.strip(),
-                            "model": f"Antigravity CLI ({display_model})"
+                            "model": f"Gemini Key ({display_model})"
                         }
             except urllib.error.HTTPError as http_err:
                 sys.stderr.write(f"Gemini REST HTTP Error ({g_model}): {http_err.code}\n")
@@ -324,7 +324,7 @@ def generate_ai_response(prompt, username, history=None, selected_model="Gemini 
     return {
         "success": True,
         "reply": reply_text,
-        "model": f"Antigravity CLI ({display_model})"
+        "model": f"Standalone AI ({display_model})"
     }
 
 def main():

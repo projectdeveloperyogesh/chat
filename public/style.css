@@ -975,6 +975,13 @@ body {
   color: var(--text-muted);
 }
 
+.header-right {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-shrink: 0;
+}
+
 .user-avatars-stack {
   display: flex;
   align-items: center;

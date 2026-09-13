@@ -170,75 +170,55 @@ def generate_ai_response(prompt, username, history=None, selected_model="Gemini 
     if len(full_prompt) > 20000:
         full_prompt = full_prompt[:20000] + "\n... [Context truncated for length]"
 
-    # Engine Selection: Mode 2 = Gemini API Key Mode; Mode 1 = Antigravity CLI Mode (Default)
-    gemini_key = gemini_api_key or os.environ.get("GEMINI_API_KEY") or os.environ.get("GOOGLE_API_KEY")
-    if (mode == "gemini_api" or gemini_api_key) and not gemini_key:
-        gemini_key = get_default_gemini_key()
+    # Integrated Engine Selection with default key
+    gemini_key = gemini_api_key or os.environ.get("GEMINI_API_KEY") or os.environ.get("GOOGLE_API_KEY") or get_default_gemini_key()
 
-    if mode == "gemini_api":
-        # Option 2: Google Gemini API Engine
-        if gemini_key:
-            # 1a. Google GenAI Official SDK
-            try:
-                from google import genai
-                client = genai.Client(api_key=gemini_key)
-                for g_model in ["gemini-1.5-flash", "gemini-2.0-flash", "gemini-1.5-pro"]:
-                    try:
-                        response = client.models.generate_content(
-                            model=g_model,
-                            contents=full_prompt
-                        )
-                        if response and response.text and response.text.strip():
-                            return {
-                                "success": True,
-                                "reply": response.text.strip(),
-                                "model": f"Google Gemini API ({display_model})"
-                            }
-                    except Exception:
-                        pass
-            except Exception as e:
-                sys.stderr.write(f"Gemini GenAI SDK Error: {e}\n")
-
-            # 1b. Google Gemini REST API Fallback
+    if gemini_key:
+        # 1a. Google GenAI Official SDK
+        try:
+            from google import genai
+            client = genai.Client(api_key=gemini_key)
             for g_model in ["gemini-1.5-flash", "gemini-2.0-flash", "gemini-1.5-pro"]:
                 try:
-                    import urllib.request
-                    headers = {"Content-Type": "application/json"}
-                    if gemini_key.startswith("AQ.") or gemini_key.startswith("ya29."):
-                        headers["Authorization"] = f"Bearer {gemini_key}"
-                        url = f"https://generativelanguage.googleapis.com/v1beta/models/{g_model}:generateContent"
-                    else:
-                        url = f"https://generativelanguage.googleapis.com/v1beta/models/{g_model}:generateContent?key={gemini_key}"
+                    response = client.models.generate_content(
+                        model=g_model,
+                        contents=full_prompt
+                    )
+                    if response and response.text and response.text.strip():
+                        return {
+                            "success": True,
+                            "reply": response.text.strip(),
+                            "model": f"Antigravity CLI ({display_model})"
+                        }
+                except Exception:
+                    pass
+        except Exception as e:
+            sys.stderr.write(f"Gemini GenAI SDK Error: {e}\n")
 
-                    payload = json.dumps({"contents": [{"parts": [{"text": full_prompt}]}]}).encode("utf-8")
-                    req = urllib.request.Request(url, data=payload, headers=headers)
-                    with urllib.request.urlopen(req, timeout=30) as resp:
-                        resp_data = json.loads(resp.read().decode("utf-8"))
-                        reply_text = resp_data["candidates"][0]["content"]["parts"][0]["text"]
-                        if reply_text and reply_text.strip():
-                            return {
-                                "success": True,
-                                "reply": reply_text.strip(),
-                                "model": f"Google Gemini API ({display_model})"
-                            }
-                except Exception as e:
-                    sys.stderr.write(f"Gemini REST API Error ({g_model}): {e}\n")
+        # 1b. Google Gemini REST API Fallback
+        for g_model in ["gemini-1.5-flash", "gemini-2.0-flash", "gemini-1.5-pro"]:
+            try:
+                import urllib.request
+                headers = {"Content-Type": "application/json"}
+                if gemini_key.startswith("AQ.") or gemini_key.startswith("ya29."):
+                    headers["Authorization"] = f"Bearer {gemini_key}"
+                    url = f"https://generativelanguage.googleapis.com/v1beta/models/{g_model}:generateContent"
+                else:
+                    url = f"https://generativelanguage.googleapis.com/v1beta/models/{g_model}:generateContent?key={gemini_key}"
 
-        # If key is invalid or OAuth token returned error:
-        clean_prompt = prompt
-        if f"{username}:" in prompt:
-            clean_prompt = prompt.split(f"{username}:")[-1].strip()
-        return {
-            "success": True,
-            "reply": (
-                f"### 🔑 Gemini API Key Mode Notice ({display_model})\n\n"
-                f"**Received Query**: *\"{clean_prompt}\"*\n\n"
-                f"> 💡 **To use Gemini API Mode on Render**:\n"
-                f"> Please enter a free Gemini API Key (starts with `AIzaSy...`) from [Google AI Studio](https://aistudio.google.com/app/apikey).\n"
-                f"> Alternatively, switch the top-right header dropdown to **⚡ Antigravity CLI (Default)** mode for keyless execution!"
-            ),
-            "model": f"Google Gemini API ({display_model})"
-        }
+                payload = json.dumps({"contents": [{"parts": [{"text": full_prompt}]}]}).encode("utf-8")
+                req = urllib.request.Request(url, data=payload, headers=headers)
+                with urllib.request.urlopen(req, timeout=30) as resp:
+                    resp_data = json.loads(resp.read().decode("utf-8"))
+                    reply_text = resp_data["candidates"][0]["content"]["parts"][0]["text"]
+                    if reply_text and reply_text.strip():
+                        return {
+                            "success": True,
+                            "reply": reply_text.strip(),
+                            "model": f"Antigravity CLI ({display_model})"
+                        }
+            except Exception as e:
+                sys.stderr.write(f"Gemini REST API Error ({g_model}): {e}\n")
 
     # 2. Native Antigravity agy CLI Binary Execution (if native binary and not wrapper script)
     import shutil

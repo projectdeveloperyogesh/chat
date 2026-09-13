@@ -96,13 +96,6 @@ document.addEventListener('DOMContentLoaded', () => {
     aiEngineModeSelect.addEventListener('change', () => {
       selectedEngineMode = aiEngineModeSelect.value;
       localStorage.setItem('yogesh_ai_engine_mode', selectedEngineMode);
-      if (selectedEngineMode === 'gemini_api') {
-        const userKey = prompt("Enter your Gemini API Key / OAuth Token (Default prefilled):", customGeminiApiKey);
-        if (userKey && userKey.trim()) {
-          customGeminiApiKey = userKey.trim();
-          localStorage.setItem('yogesh_gemini_api_key', customGeminiApiKey);
-        }
-      }
     });
   }
 

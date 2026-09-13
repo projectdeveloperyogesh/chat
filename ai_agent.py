@@ -177,7 +177,7 @@ def generate_ai_response(prompt, username, history=None, selected_model="Gemini 
         try:
             from google import genai
             client = genai.Client(api_key=gemini_key)
-            for g_model in ["gemini-2.0-flash", "gemini-1.5-flash"]:
+            for g_model in ["gemini-3.6-flash", "gemini-3.7-flash", "gemini-3.8-flash", "gemini-2.0-flash", "gemini-1.5-flash"]:
                 try:
                     response = client.models.generate_content(
                         model=g_model,
@@ -195,20 +195,21 @@ def generate_ai_response(prompt, username, history=None, selected_model="Gemini 
             sys.stderr.write(f"Gemini GenAI SDK Exception: {e}\n")
 
         # 1b. Try Google Gemini REST API Direct Endpoint
-        g_models = ["gemini-2.0-flash", "gemini-1.5-flash", "gemini-1.5-pro"]
+        g_models = ["gemini-3.6-flash", "gemini-3.7-flash", "gemini-3.8-flash", "gemini-2.0-flash", "gemini-1.5-flash"]
         for g_model in g_models:
             try:
-                headers = {"Content-Type": "application/json"}
+                headers = {
+                    "Content-Type": "application/json",
+                    "x-goog-api-key": gemini_key
+                }
                 if gemini_key.startswith("AQ.") or gemini_key.startswith("ya29."):
                     headers["Authorization"] = f"Bearer {gemini_key}"
-                    url = f"https://generativelanguage.googleapis.com/v1beta/models/{g_model}:generateContent"
-                else:
-                    headers["x-goog-api-key"] = gemini_key
-                    url = f"https://generativelanguage.googleapis.com/v1beta/models/{g_model}:generateContent?key={gemini_key}"
+                
+                url = f"https://generativelanguage.googleapis.com/v1beta/models/{g_model}:generateContent"
 
                 payload = json.dumps({"contents": [{"parts": [{"text": full_prompt}]}]}).encode("utf-8")
                 req = urllib.request.Request(url, data=payload, headers=headers)
-                with urllib.request.urlopen(req, timeout=3) as resp:
+                with urllib.request.urlopen(req, timeout=10) as resp:
                     resp_data = json.loads(resp.read().decode("utf-8"))
                     reply_text = resp_data["candidates"][0]["content"]["parts"][0]["text"]
                     if reply_text and reply_text.strip():

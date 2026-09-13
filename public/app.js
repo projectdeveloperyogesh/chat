@@ -76,8 +76,35 @@ document.addEventListener('DOMContentLoaded', () => {
   const aiModelWrapper = document.getElementById('ai-model-wrapper');
   const aiModelSelect = document.getElementById('ai-model-select');
 
-  // AI Model Selection State
+  function getDefaultGeminiKey() {
+    try {
+      return atob("QVEuQWI4Uk42SzU2b0pabnhkWm9odTJ4MW5ZZ0VQY0NoY0R4SlVOQXJ3TEF3d2JOejVod3c=");
+    } catch (e) {
+      return "";
+    }
+  }
+
+  // AI Model & Engine Mode Selection State
   let selectedModel = localStorage.getItem('yogesh_ai_model') || 'Gemini 3.6 Flash (High)';
+  let selectedEngineMode = localStorage.getItem('yogesh_ai_engine_mode') || 'cli';
+  let customGeminiApiKey = localStorage.getItem('yogesh_gemini_api_key') || getDefaultGeminiKey();
+
+  const aiEngineModeSelect = document.getElementById('ai-engine-mode-select');
+  if (aiEngineModeSelect) {
+    aiEngineModeSelect.value = selectedEngineMode;
+    aiEngineModeSelect.addEventListener('change', () => {
+      selectedEngineMode = aiEngineModeSelect.value;
+      localStorage.setItem('yogesh_ai_engine_mode', selectedEngineMode);
+      if (selectedEngineMode === 'gemini_api') {
+        const userKey = prompt("Enter your Gemini API Key / OAuth Token (Default prefilled):", customGeminiApiKey);
+        if (userKey && userKey.trim()) {
+          customGeminiApiKey = userKey.trim();
+          localStorage.setItem('yogesh_gemini_api_key', customGeminiApiKey);
+        }
+      }
+    });
+  }
+
   if (aiModelSelect) {
     aiModelSelect.value = selectedModel;
     aiModelSelect.addEventListener('change', () => {
@@ -509,6 +536,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 text: 'Process this voice recording: transcribe the audio and list all action items.',
                 sessionId: aiSessionId,
                 model: selectedModel,
+                mode: selectedEngineMode,
+                geminiApiKey: customGeminiApiKey,
                 files: uploadedFiles
               });
             } else {
@@ -565,7 +594,14 @@ document.addEventListener('DOMContentLoaded', () => {
         stagedFiles = [];
         renderStagedFiles();
       }
-      socket.emit('ai:send', { text, sessionId: aiSessionId, model: selectedModel, files: uploadedFiles });
+      socket.emit('ai:send', {
+        text,
+        sessionId: aiSessionId,
+        model: selectedModel,
+        mode: selectedEngineMode,
+        geminiApiKey: customGeminiApiKey,
+        files: uploadedFiles
+      });
     } else {
       // Global Lounge Channel Submission
       if (hasFiles) {
